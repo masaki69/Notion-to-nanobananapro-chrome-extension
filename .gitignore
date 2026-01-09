@@ -1,0 +1,29 @@
+# Chrome Extension
+*.crx
+*.pem
+*.zip
+
+# Icons (user should add their own)
+icons/*.png
+icons/*.jpg
+icons/*.jpeg
+!icons/README.md
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+
+# Node modules (if added later)
+node_modules/
+package-lock.json
+yarn.lock

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notion to Nanobanana Pro</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="header-icon">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" fill="currentColor"/>
+        </svg>
+      </div>
+      <h1>Notion to Nanobanana Pro</h1>
+    </header>
+
+    <div class="content">
+      <section class="settings-section">
+        <h2>設定 (Settings)</h2>
+
+        <div class="input-group">
+          <label for="geminiApiKey">
+            <strong>Gemini API Key</strong>
+            <span class="required">*</span>
+          </label>
+          <input
+            type="password"
+            id="geminiApiKey"
+            placeholder="Enter your Gemini API key"
+            autocomplete="off"
+          />
+          <small>
+            <a href="https://makersuite.google.com/app/apikey" target="_blank">
+              Get your API key here
+            </a>
+          </small>
+        </div>
+
+        <button id="saveBtn" class="btn-primary">
+          <span class="btn-text">保存 (Save)</span>
+          <span class="btn-loader" style="display: none;">
+            <span class="spinner"></span>
+          </span>
+        </button>
+
+        <div id="statusMessage" class="status-message"></div>
+      </section>
+
+      <section class="presets-section">
+        <h2>プロンプトプリセット (Prompt Presets)</h2>
+
+        <div class="preset-add">
+          <div class="input-group">
+            <label for="presetName">
+              <strong>プリセット名 (Preset Name)</strong>
+            </label>
+            <input
+              type="text"
+              id="presetName"
+              placeholder="例: Infographic from List"
+              autocomplete="off"
+            />
+          </div>
+
+          <div class="input-group">
+            <label for="presetPrompt">
+              <strong>プロンプトテンプレート (Prompt Template)</strong>
+            </label>
+            <textarea
+              id="presetPrompt"
+              rows="4"
+              placeholder="例: Create a professional infographic from:\n{text}\n\nUse icons, charts, modern design"
+            ></textarea>
+            <small>{'{text}'} はブロックの選択テキスト（箇条書き・表など）に置き換わります</small>
+          </div>
+
+          <button id="addPresetBtn" class="btn-secondary">
+            <span>+ プリセット追加</span>
+          </button>
+        </div>
+
+        <div class="preset-list" id="presetList">
+          <!-- Presets will be dynamically added here -->
+        </div>
+      </section>
+
+      <section class="usage-section">
+        <h2>使い方 (How to Use)</h2>
+        <ol>
+          <li>Notionページを開く</li>
+          <li>画像を生成したいテキストブロックを選択</li>
+          <li>「Generate Image」ボタンをクリック</li>
+          <li>プロンプトの種類を選択（選択テキスト/プリセット/カスタム）</li>
+          <li>生成された画像が自動的にページに追加されます</li>
+        </ol>
+      </section>
+
+      <section class="info-section">
+        <div class="info-card">
+          <strong>💡 ヒント:</strong>
+          <p>プリセットに {'{text}'} を含めると、選択したテキスト（箇条書き・表など）が自動的に挿入されます。インフォグラフィックや図表の生成に最適です。</p>
+        </div>
+      </section>
+    </div>
+
+    <footer>
+      <small>v1.0.0 | Made with ❤️ for Notion & Gemini</small>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
