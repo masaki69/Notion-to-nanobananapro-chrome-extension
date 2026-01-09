@@ -3,7 +3,6 @@ document.addEventListener('DOMContentLoaded', init);
 
 const elements = {
   geminiApiKey: null,
-  notionApiKey: null,
   saveBtn: null,
   statusMessage: null,
   btnText: null,
@@ -13,7 +12,6 @@ const elements = {
 function init() {
   // Get DOM elements
   elements.geminiApiKey = document.getElementById('geminiApiKey');
-  elements.notionApiKey = document.getElementById('notionApiKey');
   elements.saveBtn = document.getElementById('saveBtn');
   elements.statusMessage = document.getElementById('statusMessage');
   elements.btnText = document.querySelector('.btn-text');
@@ -26,29 +24,20 @@ function init() {
   elements.saveBtn.addEventListener('click', saveSettings);
 
   // Allow Enter key to save
-  [elements.geminiApiKey, elements.notionApiKey].forEach(input => {
-    input.addEventListener('keypress', (e) => {
-      if (e.key === 'Enter') {
-        saveSettings();
-      }
-    });
+  elements.geminiApiKey.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      saveSettings();
+    }
   });
 }
 
 // Load settings from storage
 async function loadSettings() {
   try {
-    const { geminiApiKey, notionApiKey } = await chrome.storage.sync.get([
-      'geminiApiKey',
-      'notionApiKey'
-    ]);
+    const { geminiApiKey } = await chrome.storage.sync.get(['geminiApiKey']);
 
     if (geminiApiKey) {
       elements.geminiApiKey.value = geminiApiKey;
-    }
-
-    if (notionApiKey) {
-      elements.notionApiKey.value = notionApiKey;
     }
   } catch (error) {
     console.error('Error loading settings:', error);
@@ -59,18 +48,11 @@ async function loadSettings() {
 // Save settings to storage
 async function saveSettings() {
   const geminiApiKey = elements.geminiApiKey.value.trim();
-  const notionApiKey = elements.notionApiKey.value.trim();
 
-  // Validate inputs
+  // Validate input
   if (!geminiApiKey) {
     showStatus('Gemini API keyを入力してください (Please enter Gemini API key)', 'error');
     elements.geminiApiKey.focus();
-    return;
-  }
-
-  if (!notionApiKey) {
-    showStatus('Notion API keyを入力してください (Please enter Notion API key)', 'error');
-    elements.notionApiKey.focus();
     return;
   }
 
@@ -79,8 +61,7 @@ async function saveSettings() {
 
   try {
     await chrome.storage.sync.set({
-      geminiApiKey,
-      notionApiKey
+      geminiApiKey
     });
 
     showStatus('設定を保存しました！ (Settings saved successfully!)', 'success');

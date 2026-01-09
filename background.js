@@ -3,8 +3,6 @@ console.log('Notion to Nanobanana Pro: Background service worker loaded');
 
 // API Configuration
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
-const NOTION_API_BASE = 'https://api.notion.com/v1';
-const NOTION_VERSION = '2022-06-28';
 
 // Listen for messages from content script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -17,35 +15,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 // Handle image generation request
-async function handleGenerateImage({ prompt, blockId, pageId }) {
+async function handleGenerateImage({ prompt }) {
   try {
-    // Get API keys from storage
-    const { geminiApiKey, notionApiKey } = await chrome.storage.sync.get([
-      'geminiApiKey',
-      'notionApiKey'
-    ]);
+    // Get API key from storage
+    const { geminiApiKey } = await chrome.storage.sync.get(['geminiApiKey']);
 
     if (!geminiApiKey) {
       throw new Error('Gemini API key not configured. Please set it in the extension popup.');
     }
 
-    if (!notionApiKey) {
-      throw new Error('Notion API key not configured. Please set it in the extension popup.');
-    }
-
-    if (!pageId) {
-      throw new Error('Could not extract Notion page ID from URL.');
-    }
-
-    // Step 1: Generate image using Gemini Nanobanana Pro
+    // Generate image using Gemini Nanobanana Pro
     console.log('Generating image with prompt:', prompt);
     const imageUrl = await generateImageWithGemini(prompt, geminiApiKey);
 
-    // Step 2: Add image to Notion page
-    console.log('Adding image to Notion page:', pageId);
-    await addImageToNotion(imageUrl, pageId, blockId, notionApiKey);
-
-    return { success: true };
+    return { success: true, imageUrl };
   } catch (error) {
     console.error('Error in handleGenerateImage:', error);
     return { success: false, error: error.message };
@@ -95,65 +78,6 @@ async function generateImageWithGemini(prompt, apiKey) {
   } catch (error) {
     console.error('Gemini API error:', error);
     throw new Error(`Failed to generate image: ${error.message}`);
-  }
-}
-
-// Add image to Notion page
-async function addImageToNotion(imageUrl, pageId, afterBlockId, apiKey) {
-  try {
-    // Format page ID (remove hyphens if present)
-    const formattedPageId = pageId.replace(/-/g, '');
-
-    // Prepare the block to append
-    const blockData = {
-      children: [
-        {
-          object: 'block',
-          type: 'image',
-          image: {
-            type: 'external',
-            external: {
-              url: imageUrl
-            }
-          }
-        }
-      ]
-    };
-
-    // If we have a specific block ID, append after that block
-    // Otherwise, append to the end of the page
-    let endpoint;
-    if (afterBlockId) {
-      const formattedBlockId = afterBlockId.replace(/-/g, '');
-      endpoint = `${NOTION_API_BASE}/blocks/${formattedBlockId}/children`;
-    } else {
-      endpoint = `${NOTION_API_BASE}/blocks/${formattedPageId}/children`;
-    }
-
-    const response = await fetch(endpoint, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'Notion-Version': NOTION_VERSION
-      },
-      body: JSON.stringify(blockData)
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(
-        `Notion API error: ${response.status} - ${errorData.message || response.statusText}`
-      );
-    }
-
-    const data = await response.json();
-    console.log('Image added to Notion:', data);
-
-    return data;
-  } catch (error) {
-    console.error('Notion API error:', error);
-    throw new Error(`Failed to add image to Notion: ${error.message}`);
   }
 }
 

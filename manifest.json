@@ -10,7 +10,6 @@
   ],
   "host_permissions": [
     "https://*.notion.so/*",
-    "https://api.notion.com/*",
     "https://generativelanguage.googleapis.com/*"
   ],
   "background": {

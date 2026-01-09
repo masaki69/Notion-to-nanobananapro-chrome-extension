@@ -9,17 +9,16 @@ NotionのブロックテキストからGemini Nanobanana Proで画像を生成�
 - 🔄 生成された画像を自動的にNotionページに追加
 - 🎨 直感的なUIと簡単な設定
 - 🔐 APIキーはブラウザのローカルストレージに安全に保存
+- 🚀 **Notionインテグレーション不要！** - Gemini API keyだけでOK
 
 ## 📋 前提条件
 
-1. **Gemini API Key**
-   - [Google AI Studio](https://makersuite.google.com/app/apikey)でAPIキーを取得
-   - Nanobanana Pro APIへのアクセス権限が必要
+**Gemini API Keyのみ必要です！**
 
-2. **Notion Integration**
-   - [Notion Integrations](https://www.notion.so/my-integrations)で新しいインテグレーションを作成
-   - 作成したインテグレーションのAPIキーを取得
-   - 使用するNotionページにインテグレーションを接続
+- [Google AI Studio](https://makersuite.google.com/app/apikey)でAPIキーを取得
+- Nanobanana Pro APIへのアクセス権限が必要
+
+> **注意**: Notionインテグレーションやアクセストークンは不要です。拡張機能がブラウザ上で直接Notionページに画像を挿入します。
 
 ## 🚀 インストール方法
 
@@ -45,18 +44,16 @@ NotionのブロックテキストからGemini Nanobanana Proで画像を生成�
 
 ## ⚙️ 設定方法
 
+たった2ステップで設定完了！
+
 1. Chromeツールバーの拡張機能アイコンをクリック
 
 2. **Gemini API Key**を入力
    - [Google AI Studio](https://makersuite.google.com/app/apikey)で取得したAPIキーを入力
 
-3. **Notion API Key**を入力
-   - [My Integrations](https://www.notion.so/my-integrations)で作成したインテグレーションのAPIキーを入力
+3. 「保存 (Save)」ボタンをクリック
 
-4. 「保存 (Save)」ボタンをクリック
-
-5. 使用するNotionページに作成したインテグレーションを接続
-   - Notionページの右上の「...」メニュー → 「接続」 → 作成したインテグレーション名を選択
+以上で設定完了です！Notionインテグレーションの作成や接続は不要です。
 
 ## 📖 使い方
 
@@ -99,7 +96,7 @@ NotionのブロックテキストからGemini Nanobanana Proで画像を生成�
 - **Vanilla JavaScript** - フレームワーク不要のシンプルな実装
 - **Chrome Storage API** - APIキーの安全な保存
 - **Gemini Nanobanana Pro API** - 画像生成
-- **Notion API** - ページへの画像追加
+- **DOM Manipulation** - ブラウザ上で直接Notionページに画像を挿入
 
 ## 📁 プロジェクト構造
 
@@ -127,40 +124,22 @@ NotionのブロックテキストからGemini Nanobanana Proで画像を生成�
 4. 生成されたAPIキーをコピー
 5. 拡張機能の設定画面に貼り付け
 
-### Notion Integration の作成
-
-1. [My Integrations](https://www.notion.so/my-integrations)にアクセス
-2. "New integration"をクリック
-3. インテグレーション名を入力（例: "Nanobanana Image Generator"）
-4. Capabilities:
-   - ✅ Read content
-   - ✅ Update content
-   - ✅ Insert content
-5. "Submit"をクリック
-6. "Internal Integration Token"をコピー
-7. 拡張機能の設定画面に貼り付け
-
-### Notionページへの接続
-
-1. 使用したいNotionページを開く
-2. 右上の「...」メニューをクリック
-3. "Add connections"を選択
-4. 作成したインテグレーション名を検索して選択
-5. "Confirm"をクリック
+これだけで準備完了です！
 
 ## 🐛 トラブルシューティング
 
 ### 画像が生成されない
 
-- APIキーが正しく設定されているか確認
+- Gemini APIキーが正しく設定されているか確認
 - インターネット接続を確認
 - Chromeのデベロッパーツール（F12）でエラーメッセージを確認
+- API使用制限に達していないか確認
 
-### 画像がNotionに追加されない
+### 画像がNotionページに表示されない
 
-- Notionインテグレーションがページに接続されているか確認
-- Notion API Keyが正しいか確認
-- インテグレーションに必要な権限（Insert content）があるか確認
+- ページをリロードしてみる
+- ブラウザのコンソール（F12）でエラーを確認
+- 画像URLが有効か確認
 
 ### 「Generate Image」ボタンが表示されない
 
@@ -174,6 +153,8 @@ NotionのブロックテキストからGemini Nanobanana Proで画像を生成�
 - Gemini APIには使用量制限がある場合があります
 - 生成される画像の品質はプロンプト（選択したテキスト）の詳細さに依存します
 - 大量のリクエストを短時間に送信するとAPI制限に達する可能性があります
+- 画像はNotionのDOMに直接挿入されます（Notion APIは使用しません）
+- ページをリロードすると挿入した画像は消える可能性があります（Notionの保存機能に依存）
 
 ## 🤝 コントリビューション
 
@@ -186,8 +167,8 @@ MIT License
 ## 🔗 リンク
 
 - [Gemini API Documentation](https://ai.google.dev/docs)
-- [Notion API Documentation](https://developers.notion.com/)
 - [Chrome Extension Documentation](https://developer.chrome.com/docs/extensions/)
+- [Google AI Studio](https://makersuite.google.com/app/apikey)
 
 ## ✨ 今後の改善予定
 
