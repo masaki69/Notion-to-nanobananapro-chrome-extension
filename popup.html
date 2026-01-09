@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Notion to Nanobanana Pro</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="header-icon">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" fill="currentColor"/>
+        </svg>
+      </div>
+      <h1>Notion to Nanobanana Pro</h1>
+    </header>
+
+    <div class="content">
+      <section class="settings-section">
+        <h2>設定 (Settings)</h2>
+
+        <div class="input-group">
+          <label for="geminiApiKey">
+            <strong>Gemini API Key</strong>
+            <span class="required">*</span>
+          </label>
+          <input
+            type="password"
+            id="geminiApiKey"
+            placeholder="Enter your Gemini API key"
+            autocomplete="off"
+          />
+          <small>
+            <a href="https://makersuite.google.com/app/apikey" target="_blank">
+              Get your API key here
+            </a>
+          </small>
+        </div>
+
+        <div class="input-group">
+          <label for="notionApiKey">
+            <strong>Notion API Key</strong>
+            <span class="required">*</span>
+          </label>
+          <input
+            type="password"
+            id="notionApiKey"
+            placeholder="Enter your Notion API key"
+            autocomplete="off"
+          />
+          <small>
+            <a href="https://www.notion.so/my-integrations" target="_blank">
+              Create an integration here
+            </a>
+          </small>
+        </div>
+
+        <button id="saveBtn" class="btn-primary">
+          <span class="btn-text">保存 (Save)</span>
+          <span class="btn-loader" style="display: none;">
+            <span class="spinner"></span>
+          </span>
+        </button>
+
+        <div id="statusMessage" class="status-message"></div>
+      </section>
+
+      <section class="usage-section">
+        <h2>使い方 (How to Use)</h2>
+        <ol>
+          <li>Notionページを開く</li>
+          <li>画像を生成したいテキストブロックを選択</li>
+          <li>「Generate Image」ボタンをクリック</li>
+          <li>生成された画像が自動的にページに追加されます</li>
+        </ol>
+      </section>
+
+      <section class="info-section">
+        <div class="info-card">
+          <strong>💡 ヒント:</strong>
+          <p>詳細な説明を選択すると、より良い画像が生成されます。</p>
+        </div>
+      </section>
+    </div>
+
+    <footer>
+      <small>v1.0.0 | Made with ❤️ for Notion & Gemini</small>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
