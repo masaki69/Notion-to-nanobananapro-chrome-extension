@@ -85,6 +85,33 @@ async function generateImageWithGemini(prompt, apiKey) {
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
     console.log('Extension installed');
+
+    // Set up default presets for structured data
+    const defaultPresets = [
+      {
+        name: "Infographic from List",
+        prompt: "Create a professional infographic based on this information:\n{text}\n\nMake it visually appealing, use icons, charts if applicable, modern design"
+      },
+      {
+        name: "Diagram from Structure",
+        prompt: "Create a clear diagram or flowchart visualizing this structure:\n{text}\n\nUse boxes, arrows, and labels. Clean, professional style"
+      },
+      {
+        name: "Table Visualization",
+        prompt: "Create a visual representation of this data:\n{text}\n\nUse charts, graphs, or visual data representation. Clean, modern style"
+      },
+      {
+        name: "Concept Map",
+        prompt: "Create a concept map or mind map from:\n{text}\n\nShow relationships between items, use colors, hierarchical structure"
+      },
+      {
+        name: "Timeline/Process",
+        prompt: "Create a timeline or process flow from:\n{text}\n\nShow sequential steps or chronological order, use arrows and clear labels"
+      }
+    ];
+
+    chrome.storage.sync.set({ presets: defaultPresets });
+
     // Open options page on install
     chrome.runtime.openOptionsPage();
   }

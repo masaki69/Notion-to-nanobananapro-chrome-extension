@@ -60,7 +60,7 @@
             <input
               type="text"
               id="presetName"
-              placeholder="例: Realistic Photo"
+              placeholder="例: Infographic from List"
               autocomplete="off"
             />
           </div>
@@ -71,10 +71,10 @@
             </label>
             <textarea
               id="presetPrompt"
-              rows="3"
-              placeholder="例: Create a photorealistic image of {text}, 4K, detailed"
+              rows="4"
+              placeholder="例: Create a professional infographic from:\n{text}\n\nUse icons, charts, modern design"
             ></textarea>
-            <small>{'{text}'} はブロックの選択テキストに置き換わります</small>
+            <small>{'{text}'} はブロックの選択テキスト（箇条書き・表など）に置き換わります</small>
           </div>
 
           <button id="addPresetBtn" class="btn-secondary">
@@ -101,7 +101,7 @@
       <section class="info-section">
         <div class="info-card">
           <strong>💡 ヒント:</strong>
-          <p>プリセットに {'{text}'} を含めると、選択したテキストが自動的に挿入されます。</p>
+          <p>プリセットに {'{text}'} を含めると、選択したテキスト（箇条書き・表など）が自動的に挿入されます。インフォグラフィックや図表の生成に最適です。</p>
         </div>
       </section>
     </div>

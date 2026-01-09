@@ -12,6 +12,7 @@ NotionのブロックテキストからGemini Nanobanana Proで画像を生成�
 - 🚀 **Notionインテグレーション不要！** - Gemini API keyだけでOK
 - 📝 **プロンプトプリセット機能** - よく使うプロンプトを保存して再利用
 - 🎯 **3つのプロンプトモード** - 選択テキスト/プリセット/カスタム入力から選択
+- 📊 **構造化データに最適** - 箇条書き・表からインフォグラフィック、図表を生成
 
 ## 📋 前提条件
 
@@ -21,6 +22,14 @@ NotionのブロックテキストからGemini Nanobanana Proで画像を生成�
 - Nanobanana Pro APIへのアクセス権限が必要
 
 > **注意**: Notionインテグレーションやアクセストークンは不要です。拡張機能がブラウザ上で直接Notionページに画像を挿入します。
+
+## 🎯 こんな方におすすめ
+
+- Notionの箇条書きや表をビジュアル化したい
+- テキストベースの情報をインフォグラフィックにしたい
+- プロジェクト計画やタスクリストを図解したい
+- データを視覚的に表現したプレゼン資料を作りたい
+- 素早くコンセプト図やフローチャートを生成したい
 
 ## 🚀 インストール方法
 
@@ -104,18 +113,25 @@ NotionのブロックテキストからGemini Nanobanana Proで画像を生成�
 → 美しい日本の風景画が生成されてNotionに追加されます
 ```
 
-### 例2: プリセットを使用
+### 例2: プリセットを使用（構造化データ）
 ```
 プリセット設定:
-名前: Realistic Photo
-テンプレート: "Create a photorealistic image of {text}, 4K, detailed, professional photography"
+名前: Infographic from List
+テンプレート: "Create a professional infographic based on this information:
+{text}
 
-選択するテキスト:
-「猫」
+Make it visually appealing, use icons, charts if applicable, modern design"
 
-→ 「Generate Image」→「プリセットを使用」→ "Realistic Photo"を選択
-→ "Create a photorealistic image of 猫, 4K, detailed, professional photography" として生成
-→ リアルな猫の写真が生成されます
+選択するテキスト（Notionの箇条書き）:
+• プロジェクト管理ツールの比較
+• Trello: カンバン方式、直感的
+• Asana: タスク管理、チーム向け
+• Notion: オールインワン、柔軟
+• Monday.com: 自動化機能、レポート
+
+→ 「Generate Image」→「プリセットを使用」→ "Infographic from List"を選択
+→ プロジェクト管理ツールの比較インフォグラフィックが生成されます
+→ アイコン、色分け、視覚的に整理された画像が作成されます
 ```
 
 ### 例3: カスタムプロンプトを入力
@@ -128,26 +144,91 @@ NotionのブロックテキストからGemini Nanobanana Proで画像を生成�
 → SF風のコンセプトアートが生成されます
 ```
 
+### 例4: 表データからグラフを生成
+```
+選択するテキスト（Notionの表）:
+| 月 | 売上 |
+| 1月 | 120万 |
+| 2月 | 150万 |
+| 3月 | 180万 |
+
+→ 「Generate Image」→プリセット「Table Visualization」を選択
+→ 月別売上の美しいグラフが生成されます
+→ バーチャート、色分け、ラベル付きの視覚的な表現
+```
+
+### 例5: プロセスフローを図解
+```
+選択するテキスト（Notionの箇条書き）:
+1. 要件定義
+2. 設計
+3. 実装
+4. テスト
+5. デプロイ
+6. 運用・保守
+
+→ 「Generate Image」→プリセット「Timeline/Process」を選択
+→ 開発プロセスのタイムライン図が生成されます
+→ 矢印、ステップ番号、クリーンなビジュアル
+```
+
 ### プリセットの例
 
-よく使うプリセットの例：
+構造化データ（箇条書き・表）向けのプリセット：
 
-1. **Realistic Photo**
+1. **Infographic from List** (箇条書きからインフォグラフィック)
+   ```
+   Create a professional infographic based on this information:
+   {text}
+
+   Make it visually appealing, use icons, charts if applicable, modern design
+   ```
+
+2. **Diagram from Structure** (構造図・フローチャート)
+   ```
+   Create a clear diagram or flowchart visualizing this structure:
+   {text}
+
+   Use boxes, arrows, and labels. Clean, professional style
+   ```
+
+3. **Table Visualization** (表データの視覚化)
+   ```
+   Create a visual representation of this data:
+   {text}
+
+   Use charts, graphs, or visual data representation. Clean, modern style
+   ```
+
+4. **Concept Map** (コンセプトマップ)
+   ```
+   Create a concept map or mind map from:
+   {text}
+
+   Show relationships between items, use colors, hierarchical structure
+   ```
+
+5. **Timeline/Process** (タイムライン・プロセス図)
+   ```
+   Create a timeline or process flow from:
+   {text}
+
+   Show sequential steps or chronological order, use arrows and clear labels
+   ```
+
+一般的な画像スタイル向けプリセット：
+
+6. **Realistic Photo**
    ```
    Create a photorealistic image of {text}, 4K, detailed, professional photography
    ```
 
-2. **Anime Style**
+7. **Anime Style**
    ```
    Anime-style illustration of {text}, vibrant colors, Japanese animation style
    ```
 
-3. **Oil Painting**
-   ```
-   Oil painting of {text}, classical art style, museum quality
-   ```
-
-4. **Digital Art**
+8. **Digital Art**
    ```
    Digital art, {text}, trending on artstation, highly detailed, fantasy art
    ```
