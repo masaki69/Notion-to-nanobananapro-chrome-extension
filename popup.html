@@ -49,12 +49,51 @@
         <div id="statusMessage" class="status-message"></div>
       </section>
 
+      <section class="presets-section">
+        <h2>プロンプトプリセット (Prompt Presets)</h2>
+
+        <div class="preset-add">
+          <div class="input-group">
+            <label for="presetName">
+              <strong>プリセット名 (Preset Name)</strong>
+            </label>
+            <input
+              type="text"
+              id="presetName"
+              placeholder="例: Realistic Photo"
+              autocomplete="off"
+            />
+          </div>
+
+          <div class="input-group">
+            <label for="presetPrompt">
+              <strong>プロンプトテンプレート (Prompt Template)</strong>
+            </label>
+            <textarea
+              id="presetPrompt"
+              rows="3"
+              placeholder="例: Create a photorealistic image of {text}, 4K, detailed"
+            ></textarea>
+            <small>{'{text}'} はブロックの選択テキストに置き換わります</small>
+          </div>
+
+          <button id="addPresetBtn" class="btn-secondary">
+            <span>+ プリセット追加</span>
+          </button>
+        </div>
+
+        <div class="preset-list" id="presetList">
+          <!-- Presets will be dynamically added here -->
+        </div>
+      </section>
+
       <section class="usage-section">
         <h2>使い方 (How to Use)</h2>
         <ol>
           <li>Notionページを開く</li>
           <li>画像を生成したいテキストブロックを選択</li>
           <li>「Generate Image」ボタンをクリック</li>
+          <li>プロンプトの種類を選択（選択テキスト/プリセット/カスタム）</li>
           <li>生成された画像が自動的にページに追加されます</li>
         </ol>
       </section>
@@ -62,7 +101,7 @@
       <section class="info-section">
         <div class="info-card">
           <strong>💡 ヒント:</strong>
-          <p>詳細な説明を選択すると、より良い画像が生成されます。</p>
+          <p>プリセットに {'{text}'} を含めると、選択したテキストが自動的に挿入されます。</p>
         </div>
       </section>
     </div>

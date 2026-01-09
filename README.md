@@ -10,6 +10,8 @@ NotionのブロックテキストからGemini Nanobanana Proで画像を生成�
 - 🎨 直感的なUIと簡単な設定
 - 🔐 APIキーはブラウザのローカルストレージに安全に保存
 - 🚀 **Notionインテグレーション不要！** - Gemini API keyだけでOK
+- 📝 **プロンプトプリセット機能** - よく使うプロンプトを保存して再利用
+- 🎯 **3つのプロンプトモード** - 選択テキスト/プリセット/カスタム入力から選択
 
 ## 📋 前提条件
 
@@ -57,6 +59,8 @@ NotionのブロックテキストからGemini Nanobanana Proで画像を生成�
 
 ## 📖 使い方
 
+### 基本的な使い方
+
 1. Notionページを開く
 
 2. 画像を生成したいテキストが含まれるブロックを選択
@@ -64,31 +68,89 @@ NotionのブロックテキストからGemini Nanobanana Proで画像を生成�
 
 3. 「Generate Image」ボタンが表示されるのでクリック
 
-4. 画像生成が開始されます（数秒〜数十秒かかります）
+4. プロンプト選択モーダルが表示されます
 
-5. 生成が完了すると、画像が自動的にNotionページに追加されます
+5. 3つのオプションから選択：
+   - **選択したテキストを使用**: そのままテキストをプロンプトとして使用
+   - **プリセットを使用**: 事前に設定したプリセットを選択
+   - **カスタムプロンプト**: その場で自由にプロンプトを入力
 
-6. ページがリロードされ、新しい画像が表示されます
+6. 「生成 (Generate)」ボタンをクリック
+
+7. 画像が生成され、自動的にNotionページに追加されます
+
+### プリセットの使い方
+
+1. 拡張機能のポップアップを開く
+
+2. 「プロンプトプリセット」セクションで以下を入力：
+   - **プリセット名**: 例: "Realistic Photo"
+   - **プロンプトテンプレート**: 例: "Create a photorealistic image of {text}, 4K, detailed"
+
+3. `{text}` と書くと、選択したテキストに自動的に置き換わります
+
+4. 「+ プリセット追加」ボタンをクリック
+
+5. Notionページで画像生成時に、そのプリセットを選択して使用できます
 
 ## 💡 使用例
 
-### 例1: 風景画の生成
+### 例1: 選択したテキストをそのまま使用
 ```
 選択するテキスト:
 「夕暮れの富士山と桜が咲く湖畔の風景」
 
-→ このテキストを選択して「Generate Image」をクリック
+→ 「Generate Image」→「選択したテキストを使用」を選択
 → 美しい日本の風景画が生成されてNotionに追加されます
 ```
 
-### 例2: コンセプトアートの生成
+### 例2: プリセットを使用
+```
+プリセット設定:
+名前: Realistic Photo
+テンプレート: "Create a photorealistic image of {text}, 4K, detailed, professional photography"
+
+選択するテキスト:
+「猫」
+
+→ 「Generate Image」→「プリセットを使用」→ "Realistic Photo"を選択
+→ "Create a photorealistic image of 猫, 4K, detailed, professional photography" として生成
+→ リアルな猫の写真が生成されます
+```
+
+### 例3: カスタムプロンプトを入力
 ```
 選択するテキスト:
-「近未来的なサイバーパンク都市、ネオンライトと空飛ぶ車」
+「近未来都市」
 
-→ このテキストを選択して「Generate Image」をクリック
+→ 「Generate Image」→「カスタムプロンプト」を選択
+→ "Cyberpunk city at night, neon lights, flying cars, futuristic skyscrapers, rain, cinematic lighting"を入力
 → SF風のコンセプトアートが生成されます
 ```
+
+### プリセットの例
+
+よく使うプリセットの例：
+
+1. **Realistic Photo**
+   ```
+   Create a photorealistic image of {text}, 4K, detailed, professional photography
+   ```
+
+2. **Anime Style**
+   ```
+   Anime-style illustration of {text}, vibrant colors, Japanese animation style
+   ```
+
+3. **Oil Painting**
+   ```
+   Oil painting of {text}, classical art style, museum quality
+   ```
+
+4. **Digital Art**
+   ```
+   Digital art, {text}, trending on artstation, highly detailed, fantasy art
+   ```
 
 ## 🛠️ 技術スタック
 
@@ -172,11 +234,12 @@ MIT License
 
 ## ✨ 今後の改善予定
 
-- [ ] 画像スタイルのカスタマイズオプション
+- [x] プロンプトプリセット機能（実装済み）
+- [x] カスタムプロンプト入力（実装済み）
 - [ ] 複数画像の一括生成
 - [ ] 生成履歴の表示
-- [ ] プロンプトテンプレート機能
 - [ ] 画像サイズ・アスペクト比の選択
+- [ ] プリセットのインポート/エクスポート機能
 - [ ] ダークモード対応
 
 ---

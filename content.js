@@ -94,14 +94,23 @@ async function handleGenerateImage() {
     return;
   }
 
-  showNotification('Generating image...', 'info');
   hideFloatingButton();
+
+  // Show prompt selection modal
+  const prompt = await showPromptModal(selectedBlock.content);
+
+  if (!prompt) {
+    // User cancelled
+    return;
+  }
+
+  showNotification('Generating image...', 'info');
 
   try {
     // Send message to background script to generate image
     const response = await chrome.runtime.sendMessage({
       action: 'generateImage',
-      prompt: selectedBlock.content
+      prompt: prompt
     });
 
     if (response.success && response.imageUrl) {
@@ -190,6 +199,130 @@ function generateUUID() {
     const v = c === 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
+}
+
+// Show prompt selection modal
+async function showPromptModal(selectedText) {
+  return new Promise(async (resolve) => {
+    // Get presets from storage
+    const { presets = [] } = await chrome.storage.sync.get(['presets']);
+
+    // Create modal overlay
+    const overlay = document.createElement('div');
+    overlay.id = 'nanobanana-prompt-modal-overlay';
+    overlay.className = 'nanobanana-modal-overlay';
+
+    // Create modal
+    const modal = document.createElement('div');
+    modal.className = 'nanobanana-modal';
+    modal.innerHTML = `
+      <div class="nanobanana-modal-header">
+        <h3>プロンプトを選択 (Select Prompt)</h3>
+        <button class="nanobanana-modal-close" title="Close">✕</button>
+      </div>
+      <div class="nanobanana-modal-body">
+        <div class="nanobanana-prompt-option">
+          <input type="radio" id="prompt-selected-text" name="prompt-type" value="selected" checked>
+          <label for="prompt-selected-text">
+            <strong>選択したテキストを使用 (Use selected text)</strong>
+            <div class="prompt-preview">${escapeHtml(selectedText)}</div>
+          </label>
+        </div>
+
+        ${presets.length > 0 ? `
+          <div class="nanobanana-prompt-option">
+            <input type="radio" id="prompt-preset" name="prompt-type" value="preset">
+            <label for="prompt-preset">
+              <strong>プリセットを使用 (Use preset)</strong>
+            </label>
+            <select id="preset-selector" class="nanobanana-select" disabled>
+              ${presets.map((p, i) => `<option value="${i}">${escapeHtml(p.name)}</option>`).join('')}
+            </select>
+          </div>
+        ` : ''}
+
+        <div class="nanobanana-prompt-option">
+          <input type="radio" id="prompt-custom" name="prompt-type" value="custom">
+          <label for="prompt-custom">
+            <strong>カスタムプロンプト (Custom prompt)</strong>
+          </label>
+          <textarea id="custom-prompt-input" class="nanobanana-textarea" rows="4" placeholder="Enter your custom prompt..." disabled></textarea>
+        </div>
+      </div>
+      <div class="nanobanana-modal-footer">
+        <button class="nanobanana-btn nanobanana-btn-secondary" id="modal-cancel">キャンセル (Cancel)</button>
+        <button class="nanobanana-btn nanobanana-btn-primary" id="modal-generate">生成 (Generate)</button>
+      </div>
+    `;
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    // Setup event listeners
+    const closeBtn = modal.querySelector('.nanobanana-modal-close');
+    const cancelBtn = modal.querySelector('#modal-cancel');
+    const generateBtn = modal.querySelector('#modal-generate');
+    const radioButtons = modal.querySelectorAll('input[name="prompt-type"]');
+    const presetSelector = modal.querySelector('#preset-selector');
+    const customInput = modal.querySelector('#custom-prompt-input');
+
+    // Enable/disable inputs based on radio selection
+    radioButtons.forEach(radio => {
+      radio.addEventListener('change', () => {
+        if (presetSelector) {
+          presetSelector.disabled = radio.value !== 'preset';
+        }
+        if (customInput) {
+          customInput.disabled = radio.value !== 'custom';
+        }
+      });
+    });
+
+    // Close modal
+    const closeModal = () => {
+      overlay.remove();
+      resolve(null);
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    cancelBtn.addEventListener('click', closeModal);
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeModal();
+    });
+
+    // Generate button
+    generateBtn.addEventListener('click', () => {
+      const selectedType = modal.querySelector('input[name="prompt-type"]:checked').value;
+      let finalPrompt = '';
+
+      if (selectedType === 'selected') {
+        finalPrompt = selectedText;
+      } else if (selectedType === 'preset' && presetSelector) {
+        const presetIndex = parseInt(presetSelector.value);
+        const preset = presets[presetIndex];
+        // Replace {text} with selected text
+        finalPrompt = preset.prompt.replace(/\{text\}/g, selectedText);
+      } else if (selectedType === 'custom' && customInput) {
+        finalPrompt = customInput.value.trim();
+        if (!finalPrompt) {
+          showNotification('カスタムプロンプトを入力してください (Please enter custom prompt)', 'error');
+          return;
+        }
+      }
+
+      overlay.remove();
+      resolve(finalPrompt);
+    });
+
+    // Focus on modal
+    setTimeout(() => overlay.classList.add('show'), 10);
+  });
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 // Show notification
