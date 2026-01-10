@@ -15,7 +15,35 @@ function getSelectedMarkdown() {
   const selection = window.getSelection();
   if (!selection.rangeCount) return null;
 
-  // Simply use the selection text - Notion preserves line breaks
+  const range = selection.getRangeAt(0);
+
+  // Try to extract markdown from Notion blocks first
+  const markdownFromBlocks = extractMarkdownFromSelection(range);
+  if (markdownFromBlocks && markdownFromBlocks.trim()) {
+    return markdownFromBlocks;
+  }
+
+  // Fallback: Try to get HTML content and convert to markdown
+  try {
+    const container = document.createElement('div');
+    container.appendChild(range.cloneContents());
+
+    // Try extracting from Notion HTML structure
+    const markdownFromHtml = extractMarkdownFromNotionHtml(container);
+    if (markdownFromHtml && markdownFromHtml.trim()) {
+      return markdownFromHtml;
+    }
+
+    // Use generic HTML to markdown converter
+    const genericMarkdown = htmlToMarkdown(container);
+    if (genericMarkdown && genericMarkdown.trim()) {
+      return genericMarkdown;
+    }
+  } catch (e) {
+    console.log('HTML extraction failed, using plain text:', e);
+  }
+
+  // Final fallback: plain text
   return selection.toString();
 }
 
@@ -40,7 +68,7 @@ function extractMarkdownFromSelection(range) {
     if (!text.trim()) continue;
 
     // Format based on block type
-    const formattedLine = formatBlockAsMarkdown(blockType, text);
+    const formattedLine = formatBlockAsMarkdown(blockType, text, block);
     if (formattedLine) {
       lines.push(formattedLine);
     }
@@ -49,23 +77,48 @@ function extractMarkdownFromSelection(range) {
   return lines.join('\n');
 }
 
-// Detect Notion block type from class names
+// Detect Notion block type from class names and DOM structure
 function getNotionBlockType(block) {
   const className = block.className || '';
 
-  if (className.includes('header-block') || className.includes('heading')) {
-    if (className.includes('sub_sub') || className.includes('heading_3')) return 'h3';
-    if (className.includes('sub_header') || className.includes('heading_2')) return 'h2';
-    if (className.includes('header-block') || className.includes('heading_1')) return 'h1';
+  // Check for headers - various Notion class name patterns
+  if (className.includes('header') || className.includes('heading')) {
+    if (className.includes('sub_sub') || className.includes('heading_3') || className.includes('sub-sub-header')) return 'h3';
+    if (className.includes('sub_header') || className.includes('heading_2') || className.includes('sub-header')) return 'h2';
+    return 'h1';
   }
 
-  if (className.includes('bulleted_list')) return 'bullet';
-  if (className.includes('numbered_list')) return 'number';
-  if (className.includes('to_do')) return 'todo';
+  // Also check for notion-specific block classes
+  if (className.includes('notion-header-block')) return 'h1';
+  if (className.includes('notion-sub_header-block')) return 'h2';
+  if (className.includes('notion-sub_sub_header-block')) return 'h3';
+
+  // Check for list types
+  if (className.includes('bulleted_list') || className.includes('bulleted-list')) return 'bullet';
+  if (className.includes('numbered_list') || className.includes('numbered-list')) return 'number';
+  if (className.includes('to_do') || className.includes('to-do') || className.includes('todo')) return 'todo';
+
+  // Check for quote/callout
   if (className.includes('quote')) return 'quote';
-  if (className.includes('code')) return 'code';
   if (className.includes('callout')) return 'callout';
+
+  // Check for code blocks
+  if (className.includes('code')) return 'code';
+
+  // Check for toggle
   if (className.includes('toggle')) return 'toggle';
+
+  // Check by examining child elements for list markers
+  const bulletMarker = block.querySelector('[style*="disc"], [style*="circle"], [style*="square"]');
+  if (bulletMarker) return 'bullet';
+
+  // Check for numbered list by looking at pseudo-elements or list-style
+  const numberMarker = block.querySelector('[style*="decimal"], [style*="list-style-type"]');
+  if (numberMarker) return 'number';
+
+  // Check for checkbox
+  const checkbox = block.querySelector('[role="checkbox"], input[type="checkbox"], [class*="checkbox"]');
+  if (checkbox) return 'todo';
 
   return 'paragraph';
 }
@@ -138,7 +191,7 @@ function extractInlineFormatting(element) {
 }
 
 // Format a block as markdown based on its type
-function formatBlockAsMarkdown(blockType, text) {
+function formatBlockAsMarkdown(blockType, text, block = null) {
   switch (blockType) {
     case 'h1': return `# ${text}`;
     case 'h2': return `## ${text}`;
@@ -146,8 +199,21 @@ function formatBlockAsMarkdown(blockType, text) {
     case 'bullet': return `- ${text}`;
     case 'number': return `1. ${text}`;
     case 'todo':
-      // Check if todo is checked (would need to check the actual checkbox)
-      return `- [ ] ${text}`;
+      // Check if todo is checked by examining the block element
+      let isChecked = false;
+      if (block) {
+        const checkbox = block.querySelector('[role="checkbox"], input[type="checkbox"], [class*="checkbox"]');
+        if (checkbox) {
+          isChecked = checkbox.getAttribute('aria-checked') === 'true' ||
+                      checkbox.checked ||
+                      checkbox.classList.contains('checked');
+        }
+        // Also check for checked class on the block itself
+        if (!isChecked && block.className) {
+          isChecked = block.className.includes('checked');
+        }
+      }
+      return `- [${isChecked ? 'x' : ' '}] ${text}`;
     case 'quote': return `> ${text}`;
     case 'code': return `\`\`\`\n${text}\n\`\`\``;
     case 'callout': return `> ${text}`;
