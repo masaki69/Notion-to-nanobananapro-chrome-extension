@@ -16,11 +16,166 @@ function getSelectedMarkdown() {
   if (!selection.rangeCount) return null;
 
   const range = selection.getRangeAt(0);
-  const container = document.createElement('div');
-  container.appendChild(range.cloneContents());
 
-  // Convert HTML to Markdown
-  return htmlToMarkdown(container);
+  // Get all Notion blocks within or intersecting the selection
+  const blocks = getSelectedNotionBlocks(range);
+
+  if (blocks.length === 0) {
+    // Fallback: try to convert cloned HTML
+    const container = document.createElement('div');
+    container.appendChild(range.cloneContents());
+    return htmlToMarkdown(container);
+  }
+
+  // Convert Notion blocks to markdown
+  return notionBlocksToMarkdown(blocks);
+}
+
+// Get all Notion blocks that intersect with the selection range
+function getSelectedNotionBlocks(range) {
+  const blocks = [];
+  const allBlocks = document.querySelectorAll('[data-block-id]');
+
+  for (const block of allBlocks) {
+    if (range.intersectsNode(block)) {
+      blocks.push(block);
+    }
+  }
+
+  return blocks;
+}
+
+// Convert Notion blocks to markdown
+function notionBlocksToMarkdown(blocks) {
+  const lines = [];
+
+  for (const block of blocks) {
+    const markdown = convertNotionBlockToMarkdown(block);
+    if (markdown) {
+      lines.push(markdown);
+    }
+  }
+
+  return lines.join('\n').trim();
+}
+
+// Convert a single Notion block to markdown
+function convertNotionBlockToMarkdown(block) {
+  const className = block.className || '';
+  const textContent = getBlockTextContent(block);
+
+  if (!textContent.trim()) return '';
+
+  // Detect block type from class name
+  if (className.includes('header-block') || className.includes('heading')) {
+    // Check for heading level
+    if (className.includes('header-block') && !className.includes('sub')) {
+      return `# ${textContent}`;
+    }
+    if (className.includes('sub_header') || className.includes('heading_2')) {
+      return `## ${textContent}`;
+    }
+    if (className.includes('sub_sub_header') || className.includes('heading_3')) {
+      return `### ${textContent}`;
+    }
+    return `# ${textContent}`;
+  }
+
+  if (className.includes('bulleted_list')) {
+    return `- ${textContent}`;
+  }
+
+  if (className.includes('numbered_list')) {
+    return `1. ${textContent}`;
+  }
+
+  if (className.includes('to_do')) {
+    const checkbox = block.querySelector('[role="checkbox"], input[type="checkbox"]');
+    const isChecked = checkbox && (checkbox.getAttribute('aria-checked') === 'true' || checkbox.checked);
+    return `- [${isChecked ? 'x' : ' '}] ${textContent}`;
+  }
+
+  if (className.includes('quote')) {
+    return `> ${textContent}`;
+  }
+
+  if (className.includes('code')) {
+    return `\`\`\`\n${textContent}\n\`\`\``;
+  }
+
+  if (className.includes('callout')) {
+    return `> 💡 ${textContent}`;
+  }
+
+  if (className.includes('toggle')) {
+    return `<details>\n<summary>${textContent}</summary>\n</details>`;
+  }
+
+  // Default: plain paragraph
+  return textContent;
+}
+
+// Get text content from a Notion block, preserving inline formatting
+function getBlockTextContent(block) {
+  // Find the content element
+  const contentEl = block.querySelector('[contenteditable="true"]') ||
+                    block.querySelector('[data-content-editable-leaf]') ||
+                    block.querySelector('.notranslate');
+
+  if (!contentEl) {
+    return block.textContent?.trim() || '';
+  }
+
+  // Process inline formatting
+  return processInlineFormatting(contentEl);
+}
+
+// Process inline formatting (bold, italic, code, links)
+function processInlineFormatting(element) {
+  let result = '';
+
+  for (const node of element.childNodes) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      result += node.textContent;
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      const style = node.style;
+      const tagName = node.tagName.toLowerCase();
+      let text = processInlineFormatting(node);
+
+      // Check for bold
+      if (style.fontWeight === '600' || style.fontWeight === '700' ||
+          style.fontWeight === 'bold' || tagName === 'strong' || tagName === 'b') {
+        text = `**${text}**`;
+      }
+
+      // Check for italic
+      if (style.fontStyle === 'italic' || tagName === 'em' || tagName === 'i') {
+        text = `*${text}*`;
+      }
+
+      // Check for strikethrough
+      if (style.textDecoration?.includes('line-through') || tagName === 's' || tagName === 'del') {
+        text = `~~${text}~~`;
+      }
+
+      // Check for code
+      if (tagName === 'code' || node.classList?.contains('notion-text-code')) {
+        text = `\`${text}\``;
+      }
+
+      // Check for links
+      if (tagName === 'a') {
+        const href = node.getAttribute('href');
+        if (href) {
+          text = `[${text}](${href})`;
+        }
+      }
+
+      result += text;
+    }
+  }
+
+  return result.trim();
 }
 
 // Convert HTML to Markdown
