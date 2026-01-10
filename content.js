@@ -24,6 +24,9 @@ async function readClipboard() {
 
 // Handle image generation using clipboard content
 async function handleGenerateImageFromClipboard() {
+  // Save current cursor position BEFORE showing modal
+  const cursorInfo = saveCursorPosition();
+
   // Read clipboard content
   let clipboardText = await readClipboard();
 
@@ -34,9 +37,6 @@ async function handleGenerateImageFromClipboard() {
 
   // Convert to markdown format
   const markdownText = convertTextToMarkdown(clipboardText);
-
-  // Get the LAST block element in selection (to insert BELOW it)
-  const lastBlockElement = getLastSelectedBlockElement() || getCurrentBlockElement();
 
   // Show prompt selection modal with clipboard content
   const prompt = await showPromptModal(markdownText);
@@ -57,8 +57,8 @@ async function handleGenerateImageFromClipboard() {
     });
 
     if (response.success && response.imageUrl) {
-      // Insert image BELOW the selected text
-      await insertImageIntoNotion(response.imageUrl, lastBlockElement);
+      // Insert image at saved cursor position
+      await insertImageAtCursor(response.imageUrl, cursorInfo);
       dismissLoading();
       showNotification('画像を生成しました！ (Image generated!)', 'success');
     } else {
@@ -69,6 +69,123 @@ async function handleGenerateImageFromClipboard() {
     dismissLoading();
     console.error('Error generating image:', error);
     showNotification(`エラー: ${error.message}`, 'error');
+  }
+}
+
+// Save current cursor position
+function saveCursorPosition() {
+  const activeElement = document.activeElement;
+  const selection = window.getSelection();
+
+  let cursorInfo = {
+    activeElement: activeElement,
+    blockElement: null,
+    hasSelection: false
+  };
+
+  // Find the Notion block containing the cursor
+  if (activeElement) {
+    const block = activeElement.closest('[data-block-id]');
+    if (block) {
+      cursorInfo.blockElement = block;
+    }
+  }
+
+  // Save selection if any
+  if (selection && selection.rangeCount > 0) {
+    const range = selection.getRangeAt(0);
+    cursorInfo.hasSelection = true;
+    cursorInfo.range = range.cloneRange();
+
+    // Also try to find block from selection
+    if (!cursorInfo.blockElement) {
+      const container = range.commonAncestorContainer;
+      const element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
+      cursorInfo.blockElement = element?.closest('[data-block-id]');
+    }
+  }
+
+  // Fallback: find focused editable element
+  if (!cursorInfo.blockElement) {
+    const focused = document.querySelector('[contenteditable="true"]:focus');
+    if (focused) {
+      cursorInfo.activeElement = focused;
+      cursorInfo.blockElement = focused.closest('[data-block-id]');
+    }
+  }
+
+  return cursorInfo;
+}
+
+// Insert image at the saved cursor position
+async function insertImageAtCursor(imageUrl, cursorInfo) {
+  try {
+    // Convert base64 data URL to Blob
+    const blob = await dataUrlToBlob(imageUrl);
+    const file = new File([blob], 'generated-image.png', { type: blob.type });
+
+    // Find target element to insert
+    let targetElement = null;
+
+    // Try to use saved cursor position
+    if (cursorInfo && cursorInfo.blockElement) {
+      const editableElement = cursorInfo.blockElement.querySelector('[contenteditable="true"]') ||
+                              cursorInfo.blockElement;
+
+      if (editableElement) {
+        editableElement.focus();
+        targetElement = editableElement;
+
+        // Move cursor to end of block and create new line
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(editableElement);
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Create new line below
+        document.execCommand('insertParagraph', false, null);
+        await new Promise(resolve => setTimeout(resolve, 150));
+      }
+    }
+
+    // Fallback: use active element or find any editable
+    if (!targetElement) {
+      targetElement = document.activeElement;
+
+      if (!targetElement || targetElement === document.body) {
+        targetElement = document.querySelector('.notion-page-content [contenteditable="true"]') ||
+                        document.querySelector('[contenteditable="true"]');
+
+        if (targetElement) {
+          targetElement.focus();
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+    }
+
+    // Create and dispatch paste event
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+
+    const pasteEvent = new ClipboardEvent('paste', {
+      bubbles: true,
+      cancelable: true,
+      clipboardData: dataTransfer
+    });
+
+    const activeEl = document.activeElement || targetElement;
+    activeEl.dispatchEvent(pasteEvent);
+
+    await new Promise(resolve => setTimeout(resolve, 300));
+    return true;
+
+  } catch (error) {
+    console.error('Error inserting image:', error);
+    return false;
   }
 }
 
@@ -841,108 +958,6 @@ function getLastSelectedBlockElement() {
     return lastBlock;
   }
   return null;
-}
-
-// Insert image into Notion page BELOW the target block
-async function insertImageIntoNotion(imageUrl, targetBlock) {
-  try {
-    // Convert base64 data URL to Blob
-    const blob = await dataUrlToBlob(imageUrl);
-
-    // Create a File from the blob
-    const file = new File([blob], 'generated-image.png', { type: blob.type });
-
-    // Find and position cursor at the END of the target block
-    let targetElement = null;
-
-    if (targetBlock) {
-      const editableElement = targetBlock.querySelector('[contenteditable="true"]') ||
-                              targetBlock.querySelector('[data-content-editable-leaf]') ||
-                              targetBlock;
-
-      if (editableElement) {
-        // Focus the element
-        editableElement.focus();
-
-        // Move cursor to the END of the block
-        const selection = window.getSelection();
-        const range = document.createRange();
-        range.selectNodeContents(editableElement);
-        range.collapse(false); // false = collapse to END
-        selection.removeAllRanges();
-        selection.addRange(range);
-
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        // Press Enter to create a new line BELOW using execCommand
-        document.execCommand('insertParagraph', false, null);
-
-        await new Promise(resolve => setTimeout(resolve, 150));
-
-        targetElement = editableElement;
-      }
-    }
-
-    // If no target, find any editable element in Notion
-    if (!targetElement) {
-      targetElement = document.querySelector('.notion-page-content [contenteditable="true"]') ||
-                      document.querySelector('[contenteditable="true"]') ||
-                      document.activeElement;
-    }
-
-    // Create DataTransfer with the image file
-    const dataTransfer = new DataTransfer();
-    dataTransfer.items.add(file);
-
-    // Create and dispatch paste event
-    const pasteEvent = new ClipboardEvent('paste', {
-      bubbles: true,
-      cancelable: true,
-      clipboardData: dataTransfer
-    });
-
-    // Dispatch to the active element
-    const activeEl = document.activeElement || targetElement;
-    const dispatched = activeEl.dispatchEvent(pasteEvent);
-
-    console.log('Paste event dispatched:', dispatched);
-
-    if (dispatched) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      return true;
-    }
-
-    // Fallback: Try using clipboard API and then triggering paste
-    try {
-      const clipboardItem = new ClipboardItem({
-        [blob.type]: blob
-      });
-      await navigator.clipboard.write([clipboardItem]);
-      console.log('Image written to clipboard');
-
-      // Create another paste event
-      const fallbackDataTransfer = new DataTransfer();
-      fallbackDataTransfer.items.add(file);
-
-      const fallbackPasteEvent = new ClipboardEvent('paste', {
-        bubbles: true,
-        cancelable: true,
-        clipboardData: fallbackDataTransfer
-      });
-
-      document.dispatchEvent(fallbackPasteEvent);
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      return true;
-    } catch (clipboardError) {
-      console.error('Clipboard fallback failed:', clipboardError);
-    }
-
-    return true; // Return true anyway since image might have been pasted
-  } catch (error) {
-    console.error('Error inserting image:', error);
-    return false;
-  }
 }
 
 // Convert data URL to Blob
