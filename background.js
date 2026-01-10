@@ -38,13 +38,12 @@ async function handleGenerateImage({ prompt }) {
 // Generate image using Gemini Nanobanana Pro API
 async function generateImageWithGemini(prompt, apiKey) {
   try {
-    // Gemini API endpoint for image generation
-    // Use gemini-2.0-flash-exp which reliably supports image generation
-    const modelName = 'gemini-2.0-flash-exp';
+    // Gemini API endpoint for Nano Banana Pro (Gemini 3 Pro Image)
+    const modelName = 'gemini-3-pro-image-preview';
     const endpoint = `${GEMINI_API_BASE}/models/${modelName}:generateContent`;
 
-    // Create an explicit image generation prompt
-    const imagePrompt = `Generate an image based on the following description. Create a visual representation:\n\n${prompt}`;
+    // Create an explicit image generation prompt to ensure image output
+    const imagePrompt = `Generate an image: ${prompt}`;
 
     const response = await fetch(`${endpoint}?key=${apiKey}`, {
       method: 'POST',
