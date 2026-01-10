@@ -162,11 +162,11 @@ chrome.runtime.onInstalled.addListener((details) => {
     chrome.storage.sync.set({ presets: defaultPresets });
   }
 
-  // Create context menu
+  // Create context menu (show on page, not just selection)
   chrome.contextMenus.create({
     id: 'nanobanana-generate-image',
-    title: '画像を生成 (Generate Image)',
-    contexts: ['selection'],
+    title: 'クリップボードから画像を生成 (Generate Image from Clipboard)',
+    contexts: ['page', 'selection'],
     documentUrlPatterns: ['https://*.notion.so/*']
   });
 });
@@ -174,10 +174,9 @@ chrome.runtime.onInstalled.addListener((details) => {
 // Handle context menu click
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === 'nanobanana-generate-image') {
-    // Send message to content script
+    // Send message to content script to read clipboard and show modal
     chrome.tabs.sendMessage(tab.id, {
-      action: 'showPromptModal',
-      selectedText: info.selectionText
+      action: 'showPromptModal'
     });
   }
 });

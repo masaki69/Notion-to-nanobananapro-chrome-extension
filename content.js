@@ -4,11 +4,73 @@ console.log('Notion to Nanobanana Pro: Content script loaded');
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'showPromptModal') {
-    // Get markdown from current selection instead of plain text
-    const markdownText = getSelectedMarkdown();
-    handleGenerateImageFromContextMenu(markdownText || request.selectedText);
+    // Read from clipboard instead of selection
+    handleGenerateImageFromClipboard();
   }
 });
+
+// Read text from clipboard
+async function readClipboard() {
+  try {
+    const text = await navigator.clipboard.readText();
+    return text;
+  } catch (error) {
+    console.error('Failed to read clipboard:', error);
+    // Fallback: try to get selected text
+    const selection = window.getSelection();
+    return selection ? selection.toString() : null;
+  }
+}
+
+// Handle image generation using clipboard content
+async function handleGenerateImageFromClipboard() {
+  // Read clipboard content
+  let clipboardText = await readClipboard();
+
+  if (!clipboardText || !clipboardText.trim()) {
+    showNotification('クリップボードにテキストがありません。テキストをコピーしてから実行してください。\n(No text in clipboard. Please copy text first.)', 'error', 5000);
+    return;
+  }
+
+  // Convert to markdown format
+  const markdownText = convertTextToMarkdown(clipboardText);
+
+  // Get the LAST block element in selection (to insert BELOW it)
+  const lastBlockElement = getLastSelectedBlockElement() || getCurrentBlockElement();
+
+  // Show prompt selection modal with clipboard content
+  const prompt = await showPromptModal(markdownText);
+
+  if (!prompt) {
+    // User cancelled
+    return;
+  }
+
+  // Show persistent loading notification
+  const dismissLoading = showLoadingNotification('画像を生成中... (Generating image...)');
+
+  try {
+    // Send message to background script to generate image
+    const response = await chrome.runtime.sendMessage({
+      action: 'generateImage',
+      prompt: prompt
+    });
+
+    if (response.success && response.imageUrl) {
+      // Insert image BELOW the selected text
+      await insertImageIntoNotion(response.imageUrl, lastBlockElement);
+      dismissLoading();
+      showNotification('画像を生成しました！ (Image generated!)', 'success');
+    } else {
+      dismissLoading();
+      showNotification(`エラー: ${response.error}`, 'error');
+    }
+  } catch (error) {
+    dismissLoading();
+    console.error('Error generating image:', error);
+    showNotification(`エラー: ${error.message}`, 'error');
+  }
+}
 
 // Get selected text as markdown format
 function getSelectedMarkdown() {
@@ -779,50 +841,6 @@ function getLastSelectedBlockElement() {
     return lastBlock;
   }
   return null;
-}
-
-// Handle image generation from context menu
-async function handleGenerateImageFromContextMenu(selectedText) {
-  if (!selectedText || !selectedText.trim()) {
-    showNotification('テキストが選択されていません (No text selected)', 'error');
-    return;
-  }
-
-  // Get the LAST block element in selection (to insert BELOW it)
-  const lastBlockElement = getLastSelectedBlockElement() || getCurrentBlockElement();
-
-  // Show prompt selection modal
-  const prompt = await showPromptModal(selectedText);
-
-  if (!prompt) {
-    // User cancelled
-    return;
-  }
-
-  // Show persistent loading notification
-  const dismissLoading = showLoadingNotification('画像を生成中... (Generating image...)');
-
-  try {
-    // Send message to background script to generate image
-    const response = await chrome.runtime.sendMessage({
-      action: 'generateImage',
-      prompt: prompt
-    });
-
-    if (response.success && response.imageUrl) {
-      // Insert image BELOW the selected text
-      await insertImageIntoNotion(response.imageUrl, lastBlockElement);
-      dismissLoading();
-      showNotification('画像を生成しました！ (Image generated!)', 'success');
-    } else {
-      dismissLoading();
-      showNotification(`エラー: ${response.error}`, 'error');
-    }
-  } catch (error) {
-    dismissLoading();
-    console.error('Error generating image:', error);
-    showNotification(`エラー: ${error.message}`, 'error');
-  }
 }
 
 // Insert image into Notion page BELOW the target block
