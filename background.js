@@ -42,8 +42,17 @@ async function generateImageWithGemini(prompt, apiKey) {
     const modelName = 'gemini-3-pro-image-preview';
     const endpoint = `${GEMINI_API_BASE}/models/${modelName}:generateContent`;
 
-    // Create an explicit image generation prompt to ensure image output
-    const imagePrompt = `Generate an image: ${prompt}`;
+    // Create a presentation slide image prompt
+    const imagePrompt = `Generate a professional presentation slide image.
+The slide should have:
+- Clean, modern design suitable for business presentations
+- Clear visual hierarchy with the content well-organized
+- Professional color scheme
+- Easy to read text and graphics
+- 16:9 aspect ratio like PowerPoint/Google Slides
+
+Content to visualize:
+${prompt}`;
 
     const response = await fetch(`${endpoint}?key=${apiKey}`, {
       method: 'POST',
