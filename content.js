@@ -148,7 +148,7 @@ async function insertImageAtCursor(imageUrl, cursorInfo) {
         editableElement.focus();
         targetElement = editableElement;
 
-        // Move cursor to end of block and create new line
+        // Move cursor to end of block (image will be inserted as new block below)
         const selection = window.getSelection();
         const range = document.createRange();
         range.selectNodeContents(editableElement);
@@ -157,10 +157,6 @@ async function insertImageAtCursor(imageUrl, cursorInfo) {
         selection.addRange(range);
 
         await new Promise(resolve => setTimeout(resolve, 100));
-
-        // Create new line below
-        document.execCommand('insertParagraph', false, null);
-        await new Promise(resolve => setTimeout(resolve, 150));
       }
     }
 
