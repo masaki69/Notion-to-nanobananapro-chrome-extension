@@ -4,9 +4,153 @@ console.log('Notion to Nanobanana Pro: Content script loaded');
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'showPromptModal') {
-    handleGenerateImageFromContextMenu(request.selectedText);
+    // Get markdown from current selection instead of plain text
+    const markdownText = getSelectedMarkdown();
+    handleGenerateImageFromContextMenu(markdownText || request.selectedText);
   }
 });
+
+// Get selected text as markdown format
+function getSelectedMarkdown() {
+  const selection = window.getSelection();
+  if (!selection.rangeCount) return null;
+
+  const range = selection.getRangeAt(0);
+  const container = document.createElement('div');
+  container.appendChild(range.cloneContents());
+
+  // Convert HTML to Markdown
+  return htmlToMarkdown(container);
+}
+
+// Convert HTML to Markdown
+function htmlToMarkdown(element) {
+  let markdown = '';
+
+  function processNode(node, listLevel = 0) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return node.textContent;
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+      return '';
+    }
+
+    const tagName = node.tagName.toLowerCase();
+    let result = '';
+    let childContent = '';
+
+    // Process children first
+    for (const child of node.childNodes) {
+      childContent += processNode(child, listLevel);
+    }
+
+    switch (tagName) {
+      // Headers
+      case 'h1':
+        result = `# ${childContent.trim()}\n\n`;
+        break;
+      case 'h2':
+        result = `## ${childContent.trim()}\n\n`;
+        break;
+      case 'h3':
+        result = `### ${childContent.trim()}\n\n`;
+        break;
+
+      // Text formatting
+      case 'strong':
+      case 'b':
+        result = `**${childContent}**`;
+        break;
+      case 'em':
+      case 'i':
+        result = `*${childContent}*`;
+        break;
+      case 'u':
+        result = `<u>${childContent}</u>`;
+        break;
+      case 's':
+      case 'strike':
+      case 'del':
+        result = `~~${childContent}~~`;
+        break;
+      case 'code':
+        result = `\`${childContent}\``;
+        break;
+
+      // Links
+      case 'a':
+        const href = node.getAttribute('href');
+        result = href ? `[${childContent}](${href})` : childContent;
+        break;
+
+      // Lists
+      case 'ul':
+      case 'ol':
+        result = childContent + '\n';
+        break;
+      case 'li':
+        const parent = node.parentElement;
+        const isOrdered = parent && parent.tagName.toLowerCase() === 'ol';
+        const indent = '  '.repeat(listLevel);
+        const bullet = isOrdered ? '1. ' : '- ';
+        result = `${indent}${bullet}${childContent.trim()}\n`;
+        break;
+
+      // Block elements
+      case 'p':
+      case 'div':
+        // Check for Notion-specific classes
+        if (node.classList.contains('notion-bulleted_list-block')) {
+          result = `- ${childContent.trim()}\n`;
+        } else if (node.classList.contains('notion-numbered_list-block')) {
+          result = `1. ${childContent.trim()}\n`;
+        } else if (node.classList.contains('notion-to_do-block')) {
+          const checkbox = node.querySelector('input[type="checkbox"]');
+          const checked = checkbox && checkbox.checked ? 'x' : ' ';
+          result = `- [${checked}] ${childContent.trim()}\n`;
+        } else if (node.classList.contains('notion-quote-block')) {
+          result = `> ${childContent.trim()}\n`;
+        } else if (node.classList.contains('notion-code-block')) {
+          result = `\`\`\`\n${childContent.trim()}\n\`\`\`\n`;
+        } else {
+          result = childContent.trim() ? `${childContent.trim()}\n\n` : '';
+        }
+        break;
+
+      // Blockquote
+      case 'blockquote':
+        result = childContent.split('\n')
+          .filter(line => line.trim())
+          .map(line => `> ${line}`)
+          .join('\n') + '\n\n';
+        break;
+
+      // Pre/Code blocks
+      case 'pre':
+        result = `\`\`\`\n${childContent.trim()}\n\`\`\`\n\n`;
+        break;
+
+      // Line break
+      case 'br':
+        result = '\n';
+        break;
+
+      // Default: just return content
+      default:
+        result = childContent;
+    }
+
+    return result;
+  }
+
+  markdown = processNode(element);
+
+  // Clean up excessive newlines
+  markdown = markdown.replace(/\n{3,}/g, '\n\n').trim();
+
+  return markdown;
+}
 
 // Get the current block element based on selection
 function getCurrentBlockElement() {
