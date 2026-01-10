@@ -1076,6 +1076,20 @@ async function showPromptModal(selectedText) {
     const customInput = modal.querySelector('#custom-prompt-input');
     const contentInput = modal.querySelector('#content-text-input');
 
+    // Prevent Notion from capturing keyboard events in textareas
+    const stopPropagation = (e) => {
+      e.stopPropagation();
+    };
+
+    // Add event listeners to all textareas to prevent Notion interference
+    const textareas = modal.querySelectorAll('textarea');
+    textareas.forEach(textarea => {
+      textarea.addEventListener('keydown', stopPropagation);
+      textarea.addEventListener('keyup', stopPropagation);
+      textarea.addEventListener('keypress', stopPropagation);
+      textarea.addEventListener('input', stopPropagation);
+    });
+
     // Enable/disable inputs based on radio selection
     radioButtons.forEach(radio => {
       radio.addEventListener('change', () => {
