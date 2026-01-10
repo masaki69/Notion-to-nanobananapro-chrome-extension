@@ -54,9 +54,7 @@ async function generateImageWithGemini(prompt, apiKey) {
           }]
         }],
         generationConfig: {
-          responseModalities: ['IMAGE'],
-          temperature: 0.7,
-          topP: 0.95
+          responseModalities: ['TEXT', 'IMAGE']
         }
       })
     });
