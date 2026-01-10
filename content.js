@@ -371,7 +371,8 @@ async function handleGenerateImageFromContextMenu(selectedText) {
     return;
   }
 
-  showNotification('画像を生成中... (Generating image...)', 'info');
+  // Show persistent loading notification
+  const dismissLoading = showLoadingNotification('画像を生成中... (Generating image...)');
 
   try {
     // Send message to background script to generate image
@@ -390,9 +391,11 @@ async function handleGenerateImageFromContextMenu(selectedText) {
         showNotification('画像をクリップボードにコピーしました。Ctrl+V (Mac: Cmd+V) でペーストしてください', 'info', 5000);
       }
     } else {
+      dismissLoading();
       showNotification(`エラー: ${response.error}`, 'error');
     }
   } catch (error) {
+    dismissLoading();
     console.error('Error generating image:', error);
     showNotification(`エラー: ${error.message}`, 'error');
   }
@@ -665,6 +668,29 @@ function showNotification(message, type = 'info', duration = 3000) {
     notification.classList.remove('show');
     setTimeout(() => notification.remove(), 300);
   }, duration);
+}
+
+// Show loading notification that persists until manually dismissed
+function showLoadingNotification(message) {
+  const notification = document.createElement('div');
+  notification.className = 'nanobanana-notification nanobanana-notification-loading';
+  notification.innerHTML = `
+    <div class="nanobanana-loading-content">
+      <div class="nanobanana-spinner"></div>
+      <span>${message}</span>
+    </div>
+  `;
+  document.body.appendChild(notification);
+
+  setTimeout(() => {
+    notification.classList.add('show');
+  }, 10);
+
+  // Return a function to dismiss the notification
+  return () => {
+    notification.classList.remove('show');
+    setTimeout(() => notification.remove(), 300);
+  };
 }
 
 // Content script is now event-driven (no initialization needed)
