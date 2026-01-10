@@ -757,23 +757,25 @@ async function showPromptModal(selectedText) {
     generateBtn.addEventListener('click', () => {
       const selectedType = modal.querySelector('input[name="prompt-type"]:checked').value;
       let finalPrompt = '';
+      let stylePrompt = '';
 
       if (selectedType === 'selected') {
-        // Use selected text as-is
+        // Use selected text as-is (no style override)
         finalPrompt = selectedText;
       } else if (selectedType === 'preset' && presetSelector) {
         const presetIndex = parseInt(presetSelector.value);
         const preset = presets[presetIndex];
-        // Automatically append selected text after preset prompt
-        finalPrompt = `${preset.prompt}\n\n対象は以下のテキストです：\n${selectedText}`;
+        // Send style as separate instruction
+        stylePrompt = preset.prompt;
+        finalPrompt = `[STYLE]: ${stylePrompt}\n\n[CONTENT]:\n${selectedText}`;
       } else if (selectedType === 'custom' && customInput) {
         const customPrompt = customInput.value.trim();
         if (!customPrompt) {
           showNotification('カスタムプロンプトを入力してください (Please enter custom prompt)', 'error');
           return;
         }
-        // Automatically append selected text after custom prompt
-        finalPrompt = `${customPrompt}\n\n対象は以下のテキストです：\n${selectedText}`;
+        // Send custom style as separate instruction
+        finalPrompt = `[STYLE]: ${customPrompt}\n\n[CONTENT]:\n${selectedText}`;
       }
 
       overlay.remove();
