@@ -15,20 +15,8 @@ function getSelectedMarkdown() {
   const selection = window.getSelection();
   if (!selection.rangeCount) return null;
 
-  const range = selection.getRangeAt(0);
-
-  // Method 1: Get actual Notion blocks from the document (not cloned)
-  const markdown = extractMarkdownFromSelection(range);
-  if (markdown && markdown.trim()) {
-    return markdown;
-  }
-
-  // Method 2: Fallback to cloned content
-  const container = document.createElement('div');
-  container.appendChild(range.cloneContents());
-  const fallbackMarkdown = extractMarkdownFromNotionHtml(container);
-
-  return fallbackMarkdown || selection.toString();
+  // Simply use the selection text - Notion preserves line breaks
+  return selection.toString();
 }
 
 // Extract markdown from actual Notion blocks in selection
