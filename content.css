@@ -162,6 +162,8 @@
   line-height: 1.5;
   max-height: 100px;
   overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .nanobanana-select {

@@ -43,8 +43,85 @@ function getSelectedMarkdown() {
     console.log('HTML extraction failed, using plain text:', e);
   }
 
-  // Final fallback: plain text
-  return selection.toString();
+  // Final fallback: convert plain text with pattern detection
+  const plainText = selection.toString();
+  return convertTextToMarkdown(plainText);
+}
+
+// Convert plain text to markdown by detecting common patterns
+function convertTextToMarkdown(text) {
+  if (!text || !text.trim()) return text;
+
+  const lines = text.split('\n');
+  const result = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+
+    // Skip empty lines but preserve them
+    if (!line.trim()) {
+      result.push('');
+      continue;
+    }
+
+    // Detect section headers like "1-4." or "1-5." at the beginning
+    const sectionMatch = line.match(/^(\d+[-\.]\d+\.?)\s*(.+)/);
+    if (sectionMatch) {
+      const [, sectionNum, content] = sectionMatch;
+      result.push(`## ${sectionNum} ${content}`);
+      continue;
+    }
+
+    // Detect standalone numbered items like "1." "2." at the beginning of line
+    const numberedMatch = line.match(/^(\d+)[.)\]]\s+(.+)/);
+    if (numberedMatch) {
+      const [, num, content] = numberedMatch;
+      result.push(`${num}. ${content}`);
+      continue;
+    }
+
+    // Detect bullet points (Japanese and Western)
+    const bulletMatch = line.match(/^[・•●○◆◇■□▪▫※]\s*(.+)/);
+    if (bulletMatch) {
+      result.push(`- ${bulletMatch[1]}`);
+      continue;
+    }
+
+    // Detect lines starting with "-" or "*" (already markdown-like)
+    const dashMatch = line.match(/^[-*]\s+(.+)/);
+    if (dashMatch) {
+      result.push(`- ${dashMatch[1]}`);
+      continue;
+    }
+
+    // Detect key-value pairs with colon (common in Japanese docs)
+    // e.g., "期間：8～12週" -> "**期間**: 8～12週"
+    const keyValueMatch = line.match(/^([^：:]{1,20})[：:](.+)/);
+    if (keyValueMatch && !line.includes('http')) {
+      const [, key, value] = keyValueMatch;
+      // Only format if key looks like a label (short, no spaces at start)
+      if (key.trim() === key && key.length <= 15) {
+        result.push(`**${key.trim()}**: ${value.trim()}`);
+        continue;
+      }
+    }
+
+    // Check if line looks like a header (short, standalone, possibly followed by content)
+    const isShortLine = line.trim().length <= 30;
+    const nextLineExists = i + 1 < lines.length && lines[i + 1].trim();
+    const prevLineEmpty = i === 0 || !lines[i - 1].trim();
+
+    if (isShortLine && prevLineEmpty && nextLineExists && !line.includes('：') && !line.includes(':')) {
+      // Might be a header
+      result.push(`### ${line.trim()}`);
+      continue;
+    }
+
+    // Default: keep as is
+    result.push(line);
+  }
+
+  return result.join('\n');
 }
 
 // Extract markdown from actual Notion blocks in selection
