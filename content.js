@@ -512,6 +512,7 @@ async function handleGenerateImageFromContextMenu(selectedText) {
     if (response.success && response.imageUrl) {
       // Insert image BELOW the selected text
       await insertImageIntoNotion(response.imageUrl, lastBlockElement);
+      dismissLoading();
       showNotification('画像を生成しました！ (Image generated!)', 'success');
     } else {
       dismissLoading();
