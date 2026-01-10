@@ -39,9 +39,7 @@ async function handleGenerateImage({ prompt }) {
 async function generateImageWithGemini(prompt, apiKey) {
   try {
     // Gemini API endpoint for Nano Banana Pro (Gemini 3 Pro Image)
-    // Using gemini-2.5-flash-image for faster generation
-    // Alternative: gemini-3-pro-image-preview for highest quality
-    const modelName = 'gemini-2.5-flash-image';
+    const modelName = 'gemini-3-pro-image-preview';
     const endpoint = `${GEMINI_API_BASE}/models/${modelName}:generateContent`;
 
     const response = await fetch(`${endpoint}?key=${apiKey}`, {
