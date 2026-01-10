@@ -3,12 +3,199 @@ console.log('Notion to Nanobanana Pro: Content script loaded');
 
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log('Message received in content script:', request);
   if (request.action === 'showPromptModal') {
-    // Get markdown from current selection instead of plain text
-    const markdownText = getSelectedMarkdown();
-    handleGenerateImageFromContextMenu(markdownText || request.selectedText);
+    // Read from clipboard instead of selection
+    handleGenerateImageFromClipboard();
+    sendResponse({ received: true });
   }
+  return true; // Keep the message channel open for async response
 });
+
+// Read text from clipboard
+async function readClipboard() {
+  try {
+    const text = await navigator.clipboard.readText();
+    return text;
+  } catch (error) {
+    console.error('Failed to read clipboard:', error);
+    // Fallback: try to get selected text
+    const selection = window.getSelection();
+    return selection ? selection.toString() : null;
+  }
+}
+
+// Handle image generation using clipboard content
+async function handleGenerateImageFromClipboard() {
+  console.log('handleGenerateImageFromClipboard started');
+
+  try {
+    // Save current cursor position BEFORE showing modal
+    const cursorInfo = saveCursorPosition();
+    console.log('Cursor position saved:', cursorInfo);
+
+    // Read clipboard content
+    let clipboardText = await readClipboard();
+    console.log('Clipboard text:', clipboardText ? clipboardText.substring(0, 100) + '...' : 'null');
+
+    if (!clipboardText || !clipboardText.trim()) {
+      showNotification('クリップボードにテキストがありません。テキストをコピーしてから実行してください。\n(No text in clipboard. Please copy text first.)', 'error', 5000);
+      return;
+    }
+
+    // Convert to markdown format
+    const markdownText = convertTextToMarkdown(clipboardText);
+
+    // Show prompt selection modal with clipboard content
+    const prompt = await showPromptModal(markdownText);
+
+    if (!prompt) {
+      // User cancelled
+      return;
+    }
+
+    // Show persistent loading notification
+    const dismissLoading = showLoadingNotification('画像を生成中... (Generating image...)');
+
+    try {
+      // Send message to background script to generate image
+      const response = await chrome.runtime.sendMessage({
+        action: 'generateImage',
+        prompt: prompt
+      });
+
+      if (response.success && response.imageUrl) {
+        // Insert image at saved cursor position
+        await insertImageAtCursor(response.imageUrl, cursorInfo);
+        dismissLoading();
+        showNotification('画像を生成しました！ (Image generated!)', 'success');
+      } else {
+        dismissLoading();
+        showNotification(`エラー: ${response.error}`, 'error');
+      }
+    } catch (error) {
+      dismissLoading();
+      console.error('Error generating image:', error);
+      showNotification(`エラー: ${error.message}`, 'error');
+    }
+  } catch (outerError) {
+    console.error('Error in handleGenerateImageFromClipboard:', outerError);
+    showNotification(`エラー: ${outerError.message}`, 'error');
+  }
+}
+
+// Save current cursor position
+function saveCursorPosition() {
+  const activeElement = document.activeElement;
+  const selection = window.getSelection();
+
+  let cursorInfo = {
+    activeElement: activeElement,
+    blockElement: null,
+    hasSelection: false
+  };
+
+  // Find the Notion block containing the cursor
+  if (activeElement) {
+    const block = activeElement.closest('[data-block-id]');
+    if (block) {
+      cursorInfo.blockElement = block;
+    }
+  }
+
+  // Save selection if any
+  if (selection && selection.rangeCount > 0) {
+    const range = selection.getRangeAt(0);
+    cursorInfo.hasSelection = true;
+    cursorInfo.range = range.cloneRange();
+
+    // Also try to find block from selection
+    if (!cursorInfo.blockElement) {
+      const container = range.commonAncestorContainer;
+      const element = container.nodeType === Node.TEXT_NODE ? container.parentElement : container;
+      cursorInfo.blockElement = element?.closest('[data-block-id]');
+    }
+  }
+
+  // Fallback: find focused editable element
+  if (!cursorInfo.blockElement) {
+    const focused = document.querySelector('[contenteditable="true"]:focus');
+    if (focused) {
+      cursorInfo.activeElement = focused;
+      cursorInfo.blockElement = focused.closest('[data-block-id]');
+    }
+  }
+
+  return cursorInfo;
+}
+
+// Insert image at the saved cursor position
+async function insertImageAtCursor(imageUrl, cursorInfo) {
+  try {
+    // Convert base64 data URL to Blob
+    const blob = await dataUrlToBlob(imageUrl);
+    const file = new File([blob], 'generated-image.png', { type: blob.type });
+
+    // Find target element to insert
+    let targetElement = null;
+
+    // Try to use saved cursor position
+    if (cursorInfo && cursorInfo.blockElement) {
+      const editableElement = cursorInfo.blockElement.querySelector('[contenteditable="true"]') ||
+                              cursorInfo.blockElement;
+
+      if (editableElement) {
+        editableElement.focus();
+        targetElement = editableElement;
+
+        // Move cursor to end of block (image will be inserted as new block below)
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(editableElement);
+        range.collapse(false);
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+
+    // Fallback: use active element or find any editable
+    if (!targetElement) {
+      targetElement = document.activeElement;
+
+      if (!targetElement || targetElement === document.body) {
+        targetElement = document.querySelector('.notion-page-content [contenteditable="true"]') ||
+                        document.querySelector('[contenteditable="true"]');
+
+        if (targetElement) {
+          targetElement.focus();
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+      }
+    }
+
+    // Create and dispatch paste event
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+
+    const pasteEvent = new ClipboardEvent('paste', {
+      bubbles: true,
+      cancelable: true,
+      clipboardData: dataTransfer
+    });
+
+    const activeEl = document.activeElement || targetElement;
+    activeEl.dispatchEvent(pasteEvent);
+
+    await new Promise(resolve => setTimeout(resolve, 300));
+    return true;
+
+  } catch (error) {
+    console.error('Error inserting image:', error);
+    return false;
+  }
+}
 
 // Get selected text as markdown format
 function getSelectedMarkdown() {
@@ -20,7 +207,22 @@ function getSelectedMarkdown() {
   // Try to extract markdown from Notion blocks first
   const markdownFromBlocks = extractMarkdownFromSelection(range);
   if (markdownFromBlocks && markdownFromBlocks.trim()) {
-    return markdownFromBlocks;
+    // Check if we got reasonable content (not just headers without content)
+    const lines = markdownFromBlocks.split('\n').filter(l => l.trim());
+    const hasContent = lines.some(l => !l.startsWith('#'));
+    if (hasContent) {
+      return markdownFromBlocks;
+    }
+  }
+
+  // Fallback: Try aggressive text extraction from the selection
+  try {
+    const aggressiveText = extractAllTextFromSelection(range);
+    if (aggressiveText && aggressiveText.trim()) {
+      return convertTextToMarkdown(aggressiveText);
+    }
+  } catch (e) {
+    console.log('Aggressive extraction failed:', e);
   }
 
   // Fallback: Try to get HTML content and convert to markdown
@@ -43,8 +245,227 @@ function getSelectedMarkdown() {
     console.log('HTML extraction failed, using plain text:', e);
   }
 
-  // Final fallback: plain text
-  return selection.toString();
+  // Final fallback: try to extract with forced line breaks between blocks
+  try {
+    const textWithBreaks = extractTextWithLineBreaks(range);
+    if (textWithBreaks && textWithBreaks.trim()) {
+      return convertTextToMarkdown(textWithBreaks);
+    }
+  } catch (e) {
+    console.log('Line break extraction failed:', e);
+  }
+
+  // Last resort: convert plain text with pattern detection
+  const plainText = selection.toString();
+  return convertTextToMarkdown(plainText);
+}
+
+// Extract text from selection while forcing line breaks between blocks
+function extractTextWithLineBreaks(range) {
+  const container = document.createElement('div');
+  container.appendChild(range.cloneContents());
+
+  // Get all block-level elements and text nodes
+  const lines = [];
+
+  function processNode(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent.trim();
+      if (text) {
+        lines.push(text);
+      }
+      return;
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+    const tagName = node.tagName.toLowerCase();
+    const isBlock = ['div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'blockquote', 'pre'].includes(tagName);
+
+    if (isBlock) {
+      // Process children and add as a single line
+      const childTexts = [];
+      for (const child of node.childNodes) {
+        if (child.nodeType === Node.TEXT_NODE) {
+          const text = child.textContent.trim();
+          if (text) childTexts.push(text);
+        } else if (child.nodeType === Node.ELEMENT_NODE) {
+          const childTag = child.tagName.toLowerCase();
+          if (['span', 'a', 'strong', 'em', 'b', 'i', 'code'].includes(childTag)) {
+            const text = child.textContent.trim();
+            if (text) childTexts.push(text);
+          } else {
+            // Nested block - process separately
+            processNode(child);
+          }
+        }
+      }
+      if (childTexts.length > 0) {
+        lines.push(childTexts.join(' '));
+      }
+    } else {
+      // Process children
+      for (const child of node.childNodes) {
+        processNode(child);
+      }
+    }
+  }
+
+  processNode(container);
+
+  return lines.join('\n');
+}
+
+// Aggressively extract all text from selected Notion blocks
+function extractAllTextFromSelection(range) {
+  const lines = [];
+
+  // Get the common ancestor and find all text-containing elements
+  const container = range.commonAncestorContainer;
+  const rootElement = container.nodeType === Node.TEXT_NODE
+    ? container.parentElement
+    : container;
+
+  // Find the Notion page content area
+  const notionContent = rootElement.closest('.notion-page-content') ||
+                        rootElement.closest('[class*="notion"]') ||
+                        rootElement;
+
+  // Find all blocks that might contain selected text
+  const allBlocks = notionContent.querySelectorAll('[data-block-id]');
+
+  for (const block of allBlocks) {
+    // Check if this block or any of its content is in the selection
+    if (!range.intersectsNode(block)) continue;
+
+    // Get all text from this block, including nested contenteditable elements
+    const blockText = extractAllBlockText(block);
+    if (blockText && blockText.trim()) {
+      const blockType = getNotionBlockType(block);
+      const formatted = formatBlockAsMarkdown(blockType, blockText.trim(), block);
+      lines.push(formatted);
+    }
+  }
+
+  // If no blocks found, try to get text from all contenteditable elements in selection
+  if (lines.length === 0) {
+    const editables = notionContent.querySelectorAll('[contenteditable="true"]');
+    for (const editable of editables) {
+      if (range.intersectsNode(editable)) {
+        const text = editable.textContent?.trim();
+        if (text) {
+          lines.push(text);
+        }
+      }
+    }
+  }
+
+  return lines.join('\n');
+}
+
+// Extract all text from a block, including nested elements
+function extractAllBlockText(block) {
+  // First try the standard method
+  const standardText = getBlockText(block);
+  if (standardText && standardText.trim()) {
+    return standardText;
+  }
+
+  // If that fails, try getting all contenteditable text
+  const editables = block.querySelectorAll('[contenteditable="true"]');
+  const texts = [];
+  for (const editable of editables) {
+    const text = editable.textContent?.trim();
+    if (text) {
+      texts.push(text);
+    }
+  }
+
+  if (texts.length > 0) {
+    return texts.join(' ');
+  }
+
+  // Last resort: get all text content
+  const clone = block.cloneNode(true);
+  // Remove nested blocks to avoid duplication
+  clone.querySelectorAll('[data-block-id]').forEach(el => el.remove());
+  return clone.textContent?.trim() || '';
+}
+
+// Convert plain text to markdown by detecting common patterns
+function convertTextToMarkdown(text) {
+  if (!text || !text.trim()) return text;
+
+  const lines = text.split('\n');
+  const result = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i];
+
+    // Skip empty lines but preserve them
+    if (!line.trim()) {
+      result.push('');
+      continue;
+    }
+
+    // Detect section headers like "1-4." or "1-5." at the beginning
+    const sectionMatch = line.match(/^(\d+[-\.]\d+\.?)\s*(.+)/);
+    if (sectionMatch) {
+      const [, sectionNum, content] = sectionMatch;
+      result.push(`## ${sectionNum} ${content}`);
+      continue;
+    }
+
+    // Detect standalone numbered items like "1." "2." at the beginning of line
+    const numberedMatch = line.match(/^(\d+)[.)\]]\s+(.+)/);
+    if (numberedMatch) {
+      const [, num, content] = numberedMatch;
+      result.push(`${num}. ${content}`);
+      continue;
+    }
+
+    // Detect bullet points (Japanese and Western)
+    const bulletMatch = line.match(/^[・•●○◆◇■□▪▫※]\s*(.+)/);
+    if (bulletMatch) {
+      result.push(`- ${bulletMatch[1]}`);
+      continue;
+    }
+
+    // Detect lines starting with "-" or "*" (already markdown-like)
+    const dashMatch = line.match(/^[-*]\s+(.+)/);
+    if (dashMatch) {
+      result.push(`- ${dashMatch[1]}`);
+      continue;
+    }
+
+    // Detect key-value pairs with colon (common in Japanese docs)
+    // e.g., "期間：8～12週" -> "**期間**: 8～12週"
+    const keyValueMatch = line.match(/^([^：:]{1,20})[：:](.+)/);
+    if (keyValueMatch && !line.includes('http')) {
+      const [, key, value] = keyValueMatch;
+      // Only format if key looks like a label (short, no spaces at start)
+      if (key.trim() === key && key.length <= 15) {
+        result.push(`**${key.trim()}**: ${value.trim()}`);
+        continue;
+      }
+    }
+
+    // Check if line looks like a header (short, standalone, possibly followed by content)
+    const isShortLine = line.trim().length <= 30;
+    const nextLineExists = i + 1 < lines.length && lines[i + 1].trim();
+    const prevLineEmpty = i === 0 || !lines[i - 1].trim();
+
+    if (isShortLine && prevLineEmpty && nextLineExists && !line.includes('：') && !line.includes(':')) {
+      // Might be a header
+      result.push(`### ${line.trim()}`);
+      continue;
+    }
+
+    // Default: keep as is
+    result.push(line);
+  }
+
+  return result.join('\n');
 }
 
 // Extract markdown from actual Notion blocks in selection
@@ -545,152 +966,6 @@ function getLastSelectedBlockElement() {
     return lastBlock;
   }
   return null;
-}
-
-// Handle image generation from context menu
-async function handleGenerateImageFromContextMenu(selectedText) {
-  if (!selectedText || !selectedText.trim()) {
-    showNotification('テキストが選択されていません (No text selected)', 'error');
-    return;
-  }
-
-  // Get the LAST block element in selection (to insert BELOW it)
-  const lastBlockElement = getLastSelectedBlockElement() || getCurrentBlockElement();
-
-  // Show prompt selection modal
-  const prompt = await showPromptModal(selectedText);
-
-  if (!prompt) {
-    // User cancelled
-    return;
-  }
-
-  // Show persistent loading notification
-  const dismissLoading = showLoadingNotification('画像を生成中... (Generating image...)');
-
-  try {
-    // Send message to background script to generate image
-    const response = await chrome.runtime.sendMessage({
-      action: 'generateImage',
-      prompt: prompt
-    });
-
-    if (response.success && response.imageUrl) {
-      // Insert image BELOW the selected text
-      await insertImageIntoNotion(response.imageUrl, lastBlockElement);
-      dismissLoading();
-      showNotification('画像を生成しました！ (Image generated!)', 'success');
-    } else {
-      dismissLoading();
-      showNotification(`エラー: ${response.error}`, 'error');
-    }
-  } catch (error) {
-    dismissLoading();
-    console.error('Error generating image:', error);
-    showNotification(`エラー: ${error.message}`, 'error');
-  }
-}
-
-// Insert image into Notion page BELOW the target block
-async function insertImageIntoNotion(imageUrl, targetBlock) {
-  try {
-    // Convert base64 data URL to Blob
-    const blob = await dataUrlToBlob(imageUrl);
-
-    // Create a File from the blob
-    const file = new File([blob], 'generated-image.png', { type: blob.type });
-
-    // Find and position cursor at the END of the target block
-    let targetElement = null;
-
-    if (targetBlock) {
-      const editableElement = targetBlock.querySelector('[contenteditable="true"]') ||
-                              targetBlock.querySelector('[data-content-editable-leaf]') ||
-                              targetBlock;
-
-      if (editableElement) {
-        // Focus the element
-        editableElement.focus();
-
-        // Move cursor to the END of the block
-        const selection = window.getSelection();
-        const range = document.createRange();
-        range.selectNodeContents(editableElement);
-        range.collapse(false); // false = collapse to END
-        selection.removeAllRanges();
-        selection.addRange(range);
-
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        // Press Enter to create a new line BELOW using execCommand
-        document.execCommand('insertParagraph', false, null);
-
-        await new Promise(resolve => setTimeout(resolve, 150));
-
-        targetElement = editableElement;
-      }
-    }
-
-    // If no target, find any editable element in Notion
-    if (!targetElement) {
-      targetElement = document.querySelector('.notion-page-content [contenteditable="true"]') ||
-                      document.querySelector('[contenteditable="true"]') ||
-                      document.activeElement;
-    }
-
-    // Create DataTransfer with the image file
-    const dataTransfer = new DataTransfer();
-    dataTransfer.items.add(file);
-
-    // Create and dispatch paste event
-    const pasteEvent = new ClipboardEvent('paste', {
-      bubbles: true,
-      cancelable: true,
-      clipboardData: dataTransfer
-    });
-
-    // Dispatch to the active element
-    const activeEl = document.activeElement || targetElement;
-    const dispatched = activeEl.dispatchEvent(pasteEvent);
-
-    console.log('Paste event dispatched:', dispatched);
-
-    if (dispatched) {
-      await new Promise(resolve => setTimeout(resolve, 300));
-      return true;
-    }
-
-    // Fallback: Try using clipboard API and then triggering paste
-    try {
-      const clipboardItem = new ClipboardItem({
-        [blob.type]: blob
-      });
-      await navigator.clipboard.write([clipboardItem]);
-      console.log('Image written to clipboard');
-
-      // Create another paste event
-      const fallbackDataTransfer = new DataTransfer();
-      fallbackDataTransfer.items.add(file);
-
-      const fallbackPasteEvent = new ClipboardEvent('paste', {
-        bubbles: true,
-        cancelable: true,
-        clipboardData: fallbackDataTransfer
-      });
-
-      document.dispatchEvent(fallbackPasteEvent);
-      await new Promise(resolve => setTimeout(resolve, 300));
-
-      return true;
-    } catch (clipboardError) {
-      console.error('Clipboard fallback failed:', clipboardError);
-    }
-
-    return true; // Return true anyway since image might have been pasted
-  } catch (error) {
-    console.error('Error inserting image:', error);
-    return false;
-  }
 }
 
 // Convert data URL to Blob
