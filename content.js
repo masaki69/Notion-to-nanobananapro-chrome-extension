@@ -17,14 +17,154 @@ function getSelectedMarkdown() {
 
   const range = selection.getRangeAt(0);
 
-  // Clone the selected content
+  // Method 1: Get actual Notion blocks from the document (not cloned)
+  const markdown = extractMarkdownFromSelection(range);
+  if (markdown && markdown.trim()) {
+    return markdown;
+  }
+
+  // Method 2: Fallback to cloned content
   const container = document.createElement('div');
   container.appendChild(range.cloneContents());
+  const fallbackMarkdown = extractMarkdownFromNotionHtml(container);
 
-  // Try to extract markdown from Notion's structure
-  const markdown = extractMarkdownFromNotionHtml(container);
+  return fallbackMarkdown || selection.toString();
+}
 
-  return markdown || selection.toString();
+// Extract markdown from actual Notion blocks in selection
+function extractMarkdownFromSelection(range) {
+  const lines = [];
+
+  // Find all Notion blocks in the document
+  const allBlocks = document.querySelectorAll('[data-block-id]');
+
+  for (const block of allBlocks) {
+    // Check if this block intersects with the selection
+    if (!range.intersectsNode(block)) continue;
+
+    // Skip if this block contains other blocks (not a leaf)
+    if (block.querySelector('[data-block-id]')) continue;
+
+    // Get the block type and text
+    const blockType = getNotionBlockType(block);
+    const text = getBlockText(block);
+
+    if (!text.trim()) continue;
+
+    // Format based on block type
+    const formattedLine = formatBlockAsMarkdown(blockType, text);
+    if (formattedLine) {
+      lines.push(formattedLine);
+    }
+  }
+
+  return lines.join('\n');
+}
+
+// Detect Notion block type from class names
+function getNotionBlockType(block) {
+  const className = block.className || '';
+
+  if (className.includes('header-block') || className.includes('heading')) {
+    if (className.includes('sub_sub') || className.includes('heading_3')) return 'h3';
+    if (className.includes('sub_header') || className.includes('heading_2')) return 'h2';
+    if (className.includes('header-block') || className.includes('heading_1')) return 'h1';
+  }
+
+  if (className.includes('bulleted_list')) return 'bullet';
+  if (className.includes('numbered_list')) return 'number';
+  if (className.includes('to_do')) return 'todo';
+  if (className.includes('quote')) return 'quote';
+  if (className.includes('code')) return 'code';
+  if (className.includes('callout')) return 'callout';
+  if (className.includes('toggle')) return 'toggle';
+
+  return 'paragraph';
+}
+
+// Get text content from a Notion block
+function getBlockText(block) {
+  // Find the content element
+  const contentEl = block.querySelector('[contenteditable="true"]') ||
+                    block.querySelector('[data-content-editable-leaf]') ||
+                    block.querySelector('[placeholder]');
+
+  if (contentEl) {
+    return extractInlineFormatting(contentEl);
+  }
+
+  // Fallback: get text from the block itself, excluding nested blocks
+  const clone = block.cloneNode(true);
+  // Remove nested blocks
+  clone.querySelectorAll('[data-block-id]').forEach(el => el.remove());
+
+  return clone.textContent?.trim() || '';
+}
+
+// Extract text with inline formatting preserved
+function extractInlineFormatting(element) {
+  let result = '';
+
+  for (const node of element.childNodes) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      result += node.textContent;
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      const tagName = node.tagName.toLowerCase();
+      const computedStyle = window.getComputedStyle(node);
+      let text = extractInlineFormatting(node);
+
+      if (!text) continue;
+
+      // Check for formatting
+      const fontWeight = computedStyle.fontWeight;
+      const isBold = tagName === 'strong' || tagName === 'b' ||
+                     fontWeight === '600' || fontWeight === '700' || fontWeight === 'bold';
+
+      const isItalic = tagName === 'em' || tagName === 'i' ||
+                       computedStyle.fontStyle === 'italic';
+
+      const isStrike = tagName === 's' || tagName === 'del' ||
+                       computedStyle.textDecorationLine?.includes('line-through');
+
+      const isCode = tagName === 'code' ||
+                     computedStyle.fontFamily?.includes('monospace') ||
+                     node.classList?.contains('notion-text-equation');
+
+      // Apply formatting (order matters: code first, then bold/italic)
+      if (isCode) text = `\`${text}\``;
+      if (isBold) text = `**${text}**`;
+      if (isItalic) text = `*${text}*`;
+      if (isStrike) text = `~~${text}~~`;
+
+      // Links
+      if (tagName === 'a') {
+        const href = node.getAttribute('href');
+        if (href) text = `[${text}](${href})`;
+      }
+
+      result += text;
+    }
+  }
+
+  return result;
+}
+
+// Format a block as markdown based on its type
+function formatBlockAsMarkdown(blockType, text) {
+  switch (blockType) {
+    case 'h1': return `# ${text}`;
+    case 'h2': return `## ${text}`;
+    case 'h3': return `### ${text}`;
+    case 'bullet': return `- ${text}`;
+    case 'number': return `1. ${text}`;
+    case 'todo':
+      // Check if todo is checked (would need to check the actual checkbox)
+      return `- [ ] ${text}`;
+    case 'quote': return `> ${text}`;
+    case 'code': return `\`\`\`\n${text}\n\`\`\``;
+    case 'callout': return `> ${text}`;
+    default: return text;
+  }
 }
 
 // Extract markdown from Notion's HTML structure
