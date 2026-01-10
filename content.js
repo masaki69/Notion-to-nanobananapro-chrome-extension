@@ -1026,11 +1026,15 @@ async function showPromptModal(selectedText) {
         <button class="nanobanana-modal-close" title="Close">✕</button>
       </div>
       <div class="nanobanana-modal-body">
+        <div class="nanobanana-content-section">
+          <label><strong>コンテンツ (Content)</strong> - 編集可能</label>
+          <textarea id="content-text-input" class="nanobanana-textarea nanobanana-content-textarea" rows="8">${escapeHtml(selectedText)}</textarea>
+        </div>
+
         <div class="nanobanana-prompt-option">
           <input type="radio" id="prompt-selected-text" name="prompt-type" value="selected" checked>
           <label for="prompt-selected-text">
             <strong>そのまま生成 (Generate as-is)</strong>
-            <div class="prompt-preview">${escapeHtml(selectedText)}</div>
           </label>
         </div>
 
@@ -1051,7 +1055,7 @@ async function showPromptModal(selectedText) {
           <label for="prompt-custom">
             <strong>カスタムプロンプト (Custom prompt)</strong>
           </label>
-          <textarea id="custom-prompt-input" class="nanobanana-textarea" rows="4" placeholder="Enter your custom prompt..." disabled></textarea>
+          <textarea id="custom-prompt-input" class="nanobanana-textarea" rows="3" placeholder="スタイルを指定... (Enter style prompt...)" disabled></textarea>
         </div>
       </div>
       <div class="nanobanana-modal-footer">
@@ -1070,6 +1074,7 @@ async function showPromptModal(selectedText) {
     const radioButtons = modal.querySelectorAll('input[name="prompt-type"]');
     const presetSelector = modal.querySelector('#preset-selector');
     const customInput = modal.querySelector('#custom-prompt-input');
+    const contentInput = modal.querySelector('#content-text-input');
 
     // Enable/disable inputs based on radio selection
     radioButtons.forEach(radio => {
@@ -1098,18 +1103,24 @@ async function showPromptModal(selectedText) {
     // Generate button
     generateBtn.addEventListener('click', () => {
       const selectedType = modal.querySelector('input[name="prompt-type"]:checked').value;
+      const editedContent = contentInput.value.trim();
       let finalPrompt = '';
       let stylePrompt = '';
 
+      if (!editedContent) {
+        showNotification('コンテンツを入力してください (Please enter content)', 'error');
+        return;
+      }
+
       if (selectedType === 'selected') {
-        // Use selected text as-is (no style override)
-        finalPrompt = selectedText;
+        // Use edited content as-is (no style override)
+        finalPrompt = editedContent;
       } else if (selectedType === 'preset' && presetSelector) {
         const presetIndex = parseInt(presetSelector.value);
         const preset = presets[presetIndex];
         // Send style as separate instruction
         stylePrompt = preset.prompt;
-        finalPrompt = `[STYLE]: ${stylePrompt}\n\n[CONTENT]:\n${selectedText}`;
+        finalPrompt = `[STYLE]: ${stylePrompt}\n\n[CONTENT]:\n${editedContent}`;
       } else if (selectedType === 'custom' && customInput) {
         const customPrompt = customInput.value.trim();
         if (!customPrompt) {
@@ -1117,7 +1128,7 @@ async function showPromptModal(selectedText) {
           return;
         }
         // Send custom style as separate instruction
-        finalPrompt = `[STYLE]: ${customPrompt}\n\n[CONTENT]:\n${selectedText}`;
+        finalPrompt = `[STYLE]: ${customPrompt}\n\n[CONTENT]:\n${editedContent}`;
       }
 
       overlay.remove();

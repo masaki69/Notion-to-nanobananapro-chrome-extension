@@ -166,6 +166,30 @@
   word-break: break-word;
 }
 
+.nanobanana-content-section {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.nanobanana-content-section label {
+  display: block;
+  margin-bottom: 8px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  color: #374151;
+}
+
+.nanobanana-content-textarea {
+  min-height: 150px;
+  max-height: 300px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .nanobanana-select {
   width: 100%;
   padding: 10px 12px;
