@@ -42,6 +42,9 @@ async function generateImageWithGemini(prompt, apiKey) {
     const modelName = 'gemini-3-pro-image-preview';
     const endpoint = `${GEMINI_API_BASE}/models/${modelName}:generateContent`;
 
+    // Create an explicit image generation prompt to ensure image output
+    const imagePrompt = `Generate an image: ${prompt}`;
+
     const response = await fetch(`${endpoint}?key=${apiKey}`, {
       method: 'POST',
       headers: {
@@ -50,11 +53,11 @@ async function generateImageWithGemini(prompt, apiKey) {
       body: JSON.stringify({
         contents: [{
           parts: [{
-            text: prompt
+            text: imagePrompt
           }]
         }],
         generationConfig: {
-          responseModalities: ['TEXT', 'IMAGE']
+          responseModalities: ['IMAGE', 'TEXT']
         }
       })
     });
