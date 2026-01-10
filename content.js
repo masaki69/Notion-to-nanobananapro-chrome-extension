@@ -184,7 +184,8 @@ async function handleGenerateImageFromContextMenu(selectedText) {
     return;
   }
 
-  showNotification('画像を生成中... (Generating image...)', 'info');
+  // Show persistent loading notification
+  const dismissLoading = showLoadingNotification('画像を生成中... (Generating image...)');
 
   try {
     // Send message to background script to generate image
@@ -195,12 +196,16 @@ async function handleGenerateImageFromContextMenu(selectedText) {
 
     if (response.success && response.imageUrl) {
       // Insert image directly into Notion DOM
-      insertImageIntoNotion(response.imageUrl, blockElement);
+      await insertImageIntoNotion(response.imageUrl, blockElement);
+      // Dismiss loading notification after insertion completes
+      dismissLoading();
       showNotification('画像を生成しました！ (Image generated and added!)', 'success');
     } else {
+      dismissLoading();
       showNotification(`エラー: ${response.error}`, 'error');
     }
   } catch (error) {
+    dismissLoading();
     console.error('Error generating image:', error);
     showNotification(`エラー: ${error.message}`, 'error');
   }
@@ -212,9 +217,8 @@ async function insertImageIntoNotion(imageUrl, targetBlock) {
     // Convert base64 data URL to Blob
     const blob = await dataUrlToBlob(imageUrl);
 
-    // Find the editable element within the target block (BEFORE the selected text)
+    // Find the editable element within the target block and insert AFTER it
     if (targetBlock) {
-      // Focus on the beginning of the target block to insert ABOVE it
       const editableElement = targetBlock.querySelector('[contenteditable="true"]') ||
                               targetBlock.querySelector('[data-content-editable-leaf]') ||
                               targetBlock;
@@ -223,32 +227,45 @@ async function insertImageIntoNotion(imageUrl, targetBlock) {
         // Click to focus the block
         editableElement.focus();
 
-        // Move cursor to the beginning of the block
+        // Move cursor to the END of the block to insert AFTER the selected text
         const selection = window.getSelection();
         const range = document.createRange();
         range.selectNodeContents(editableElement);
-        range.collapse(true); // Collapse to start
+        range.collapse(false); // Collapse to END (false = end, true = start)
         selection.removeAllRanges();
         selection.addRange(range);
 
         // Small delay to ensure focus
         await new Promise(resolve => setTimeout(resolve, 100));
 
-        // Simulate pressing Enter to create a new line above, then move up
-        // This ensures the image is inserted ABOVE the selected text
+        // Simulate pressing Enter to create a new line AFTER the current block
         document.execCommand('insertParagraph', false, null);
 
-        // Move cursor up to the new empty line
-        const upEvent = new KeyboardEvent('keydown', {
-          key: 'ArrowUp',
-          code: 'ArrowUp',
-          keyCode: 38,
-          which: 38,
-          bubbles: true
-        });
-        editableElement.dispatchEvent(upEvent);
+        // Wait for Notion to process the new block
+        await new Promise(resolve => setTimeout(resolve, 150));
 
-        await new Promise(resolve => setTimeout(resolve, 50));
+        // Now we should be in the new empty block, paste the image here
+      }
+    } else {
+      // No target block found, try to find the last focused element or page content
+      const pageContent = document.querySelector('.notion-page-content');
+      if (pageContent) {
+        const lastBlock = pageContent.querySelector('[data-block-id]:last-child');
+        if (lastBlock) {
+          const editableElement = lastBlock.querySelector('[contenteditable="true"]') || lastBlock;
+          editableElement.focus();
+
+          const selection = window.getSelection();
+          const range = document.createRange();
+          range.selectNodeContents(editableElement);
+          range.collapse(false);
+          selection.removeAllRanges();
+          selection.addRange(range);
+
+          await new Promise(resolve => setTimeout(resolve, 100));
+          document.execCommand('insertParagraph', false, null);
+          await new Promise(resolve => setTimeout(resolve, 150));
+        }
       }
     }
 
@@ -454,6 +471,29 @@ function showNotification(message, type = 'info') {
     notification.classList.remove('show');
     setTimeout(() => notification.remove(), 300);
   }, 3000);
+}
+
+// Show loading notification that persists until manually dismissed
+function showLoadingNotification(message) {
+  const notification = document.createElement('div');
+  notification.className = 'nanobanana-notification nanobanana-notification-loading';
+  notification.innerHTML = `
+    <div class="nanobanana-loading-content">
+      <div class="nanobanana-spinner"></div>
+      <span>${message}</span>
+    </div>
+  `;
+  document.body.appendChild(notification);
+
+  setTimeout(() => {
+    notification.classList.add('show');
+  }, 10);
+
+  // Return a function to dismiss the notification
+  return () => {
+    notification.classList.remove('show');
+    setTimeout(() => notification.remove(), 300);
+  };
 }
 
 // Content script is now event-driven (no initialization needed)
