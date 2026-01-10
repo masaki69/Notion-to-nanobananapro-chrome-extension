@@ -232,18 +232,21 @@ async function showPromptModal(selectedText) {
       let finalPrompt = '';
 
       if (selectedType === 'selected') {
+        // Use selected text as-is
         finalPrompt = selectedText;
       } else if (selectedType === 'preset' && presetSelector) {
         const presetIndex = parseInt(presetSelector.value);
         const preset = presets[presetIndex];
-        // Replace {text} with selected text
-        finalPrompt = preset.prompt.replace(/\{text\}/g, selectedText);
+        // Automatically append selected text after preset prompt
+        finalPrompt = `${preset.prompt}\n\n対象は以下のテキストです：\n${selectedText}`;
       } else if (selectedType === 'custom' && customInput) {
-        finalPrompt = customInput.value.trim();
-        if (!finalPrompt) {
+        const customPrompt = customInput.value.trim();
+        if (!customPrompt) {
           showNotification('カスタムプロンプトを入力してください (Please enter custom prompt)', 'error');
           return;
         }
+        // Automatically append selected text after custom prompt
+        finalPrompt = `${customPrompt}\n\n対象は以下のテキストです：\n${selectedText}`;
       }
 
       overlay.remove();
