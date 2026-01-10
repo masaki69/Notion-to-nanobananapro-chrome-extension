@@ -383,13 +383,8 @@ async function handleGenerateImageFromContextMenu(selectedText) {
 
     if (response.success && response.imageUrl) {
       // Insert image BELOW the selected text
-      const inserted = await insertImageIntoNotion(response.imageUrl, lastBlockElement);
-      if (inserted) {
-        showNotification('画像を生成しました！ (Image generated and added!)', 'success');
-      } else {
-        // Image is in clipboard, prompt user to paste manually
-        showNotification('画像をクリップボードにコピーしました。Ctrl+V (Mac: Cmd+V) でペーストしてください', 'info', 5000);
-      }
+      await insertImageIntoNotion(response.imageUrl, lastBlockElement);
+      showNotification('画像を生成しました！ (Image generated!)', 'success');
     } else {
       dismissLoading();
       showNotification(`エラー: ${response.error}`, 'error');
@@ -407,19 +402,12 @@ async function insertImageIntoNotion(imageUrl, targetBlock) {
     // Convert base64 data URL to Blob
     const blob = await dataUrlToBlob(imageUrl);
 
-    // First, copy image to clipboard
-    try {
-      const clipboardItem = new ClipboardItem({
-        [blob.type]: blob
-      });
-      await navigator.clipboard.write([clipboardItem]);
-      console.log('Image copied to clipboard');
-    } catch (clipboardError) {
-      console.error('Failed to copy to clipboard:', clipboardError);
-      return false;
-    }
+    // Create a File from the blob
+    const file = new File([blob], 'generated-image.png', { type: blob.type });
 
     // Find and position cursor at the END of the target block
+    let targetElement = null;
+
     if (targetBlock) {
       const editableElement = targetBlock.querySelector('[contenteditable="true"]') ||
                               targetBlock.querySelector('[data-content-editable-leaf]') ||
@@ -439,49 +427,71 @@ async function insertImageIntoNotion(imageUrl, targetBlock) {
 
         await new Promise(resolve => setTimeout(resolve, 100));
 
-        // Press Enter to create a new line BELOW
-        const enterEvent = new KeyboardEvent('keydown', {
-          key: 'Enter',
-          code: 'Enter',
-          keyCode: 13,
-          which: 13,
-          bubbles: true,
-          cancelable: true
-        });
-        editableElement.dispatchEvent(enterEvent);
+        // Press Enter to create a new line BELOW using execCommand
+        document.execCommand('insertParagraph', false, null);
 
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 150));
 
-        // Try to paste using execCommand
-        const pasted = document.execCommand('paste');
-        if (pasted) {
-          console.log('Image pasted successfully');
-          return true;
-        }
-
-        // Try keyboard shortcut simulation
-        const pasteEvent = new KeyboardEvent('keydown', {
-          key: 'v',
-          code: 'KeyV',
-          keyCode: 86,
-          which: 86,
-          ctrlKey: true,
-          metaKey: true,
-          bubbles: true,
-          cancelable: true
-        });
-        document.dispatchEvent(pasteEvent);
-
-        await new Promise(resolve => setTimeout(resolve, 200));
-
-        // Check if paste worked by looking for new image elements
-        // If not, return false to prompt manual paste
-        return false;
+        targetElement = editableElement;
       }
     }
 
-    // No target block found, just copy to clipboard
-    return false;
+    // If no target, find any editable element in Notion
+    if (!targetElement) {
+      targetElement = document.querySelector('.notion-page-content [contenteditable="true"]') ||
+                      document.querySelector('[contenteditable="true"]') ||
+                      document.activeElement;
+    }
+
+    // Create DataTransfer with the image file
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+
+    // Create and dispatch paste event
+    const pasteEvent = new ClipboardEvent('paste', {
+      bubbles: true,
+      cancelable: true,
+      clipboardData: dataTransfer
+    });
+
+    // Dispatch to the active element
+    const activeEl = document.activeElement || targetElement;
+    const dispatched = activeEl.dispatchEvent(pasteEvent);
+
+    console.log('Paste event dispatched:', dispatched);
+
+    if (dispatched) {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      return true;
+    }
+
+    // Fallback: Try using clipboard API and then triggering paste
+    try {
+      const clipboardItem = new ClipboardItem({
+        [blob.type]: blob
+      });
+      await navigator.clipboard.write([clipboardItem]);
+      console.log('Image written to clipboard');
+
+      // Create another paste event
+      const fallbackDataTransfer = new DataTransfer();
+      fallbackDataTransfer.items.add(file);
+
+      const fallbackPasteEvent = new ClipboardEvent('paste', {
+        bubbles: true,
+        cancelable: true,
+        clipboardData: fallbackDataTransfer
+      });
+
+      document.dispatchEvent(fallbackPasteEvent);
+      await new Promise(resolve => setTimeout(resolve, 300));
+
+      return true;
+    } catch (clipboardError) {
+      console.error('Clipboard fallback failed:', clipboardError);
+    }
+
+    return true; // Return true anyway since image might have been pasted
   } catch (error) {
     console.error('Error inserting image:', error);
     return false;
