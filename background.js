@@ -162,21 +162,34 @@ chrome.runtime.onInstalled.addListener((details) => {
     chrome.storage.sync.set({ presets: defaultPresets });
   }
 
-  // Create context menu (show on page, not just selection)
-  chrome.contextMenus.create({
-    id: 'nanobanana-generate-image',
-    title: 'クリップボードから画像を生成 (Generate Image from Clipboard)',
-    contexts: ['page', 'selection'],
-    documentUrlPatterns: ['https://*.notion.so/*']
+  // Remove existing context menus and create new one
+  chrome.contextMenus.removeAll(() => {
+    chrome.contextMenus.create({
+      id: 'nanobanana-generate-image',
+      title: 'クリップボードから画像を生成 (Generate Image from Clipboard)',
+      contexts: ['page', 'selection'],
+      documentUrlPatterns: ['https://*.notion.so/*']
+    }, () => {
+      if (chrome.runtime.lastError) {
+        console.error('Context menu creation error:', chrome.runtime.lastError);
+      } else {
+        console.log('Context menu created successfully');
+      }
+    });
   });
 });
 
 // Handle context menu click
 chrome.contextMenus.onClicked.addListener((info, tab) => {
+  console.log('Context menu clicked:', info.menuItemId);
   if (info.menuItemId === 'nanobanana-generate-image') {
     // Send message to content script to read clipboard and show modal
     chrome.tabs.sendMessage(tab.id, {
       action: 'showPromptModal'
+    }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.error('Failed to send message to content script:', chrome.runtime.lastError);
+      }
     });
   }
 });

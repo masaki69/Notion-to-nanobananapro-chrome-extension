@@ -3,10 +3,13 @@ console.log('Notion to Nanobanana Pro: Content script loaded');
 
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log('Message received in content script:', request);
   if (request.action === 'showPromptModal') {
     // Read from clipboard instead of selection
     handleGenerateImageFromClipboard();
+    sendResponse({ received: true });
   }
+  return true; // Keep the message channel open for async response
 });
 
 // Read text from clipboard
@@ -24,51 +27,60 @@ async function readClipboard() {
 
 // Handle image generation using clipboard content
 async function handleGenerateImageFromClipboard() {
-  // Save current cursor position BEFORE showing modal
-  const cursorInfo = saveCursorPosition();
-
-  // Read clipboard content
-  let clipboardText = await readClipboard();
-
-  if (!clipboardText || !clipboardText.trim()) {
-    showNotification('クリップボードにテキストがありません。テキストをコピーしてから実行してください。\n(No text in clipboard. Please copy text first.)', 'error', 5000);
-    return;
-  }
-
-  // Convert to markdown format
-  const markdownText = convertTextToMarkdown(clipboardText);
-
-  // Show prompt selection modal with clipboard content
-  const prompt = await showPromptModal(markdownText);
-
-  if (!prompt) {
-    // User cancelled
-    return;
-  }
-
-  // Show persistent loading notification
-  const dismissLoading = showLoadingNotification('画像を生成中... (Generating image...)');
+  console.log('handleGenerateImageFromClipboard started');
 
   try {
-    // Send message to background script to generate image
-    const response = await chrome.runtime.sendMessage({
-      action: 'generateImage',
-      prompt: prompt
-    });
+    // Save current cursor position BEFORE showing modal
+    const cursorInfo = saveCursorPosition();
+    console.log('Cursor position saved:', cursorInfo);
 
-    if (response.success && response.imageUrl) {
-      // Insert image at saved cursor position
-      await insertImageAtCursor(response.imageUrl, cursorInfo);
-      dismissLoading();
-      showNotification('画像を生成しました！ (Image generated!)', 'success');
-    } else {
-      dismissLoading();
-      showNotification(`エラー: ${response.error}`, 'error');
+    // Read clipboard content
+    let clipboardText = await readClipboard();
+    console.log('Clipboard text:', clipboardText ? clipboardText.substring(0, 100) + '...' : 'null');
+
+    if (!clipboardText || !clipboardText.trim()) {
+      showNotification('クリップボードにテキストがありません。テキストをコピーしてから実行してください。\n(No text in clipboard. Please copy text first.)', 'error', 5000);
+      return;
     }
-  } catch (error) {
-    dismissLoading();
-    console.error('Error generating image:', error);
-    showNotification(`エラー: ${error.message}`, 'error');
+
+    // Convert to markdown format
+    const markdownText = convertTextToMarkdown(clipboardText);
+
+    // Show prompt selection modal with clipboard content
+    const prompt = await showPromptModal(markdownText);
+
+    if (!prompt) {
+      // User cancelled
+      return;
+    }
+
+    // Show persistent loading notification
+    const dismissLoading = showLoadingNotification('画像を生成中... (Generating image...)');
+
+    try {
+      // Send message to background script to generate image
+      const response = await chrome.runtime.sendMessage({
+        action: 'generateImage',
+        prompt: prompt
+      });
+
+      if (response.success && response.imageUrl) {
+        // Insert image at saved cursor position
+        await insertImageAtCursor(response.imageUrl, cursorInfo);
+        dismissLoading();
+        showNotification('画像を生成しました！ (Image generated!)', 'success');
+      } else {
+        dismissLoading();
+        showNotification(`エラー: ${response.error}`, 'error');
+      }
+    } catch (error) {
+      dismissLoading();
+      console.error('Error generating image:', error);
+      showNotification(`エラー: ${error.message}`, 'error');
+    }
+  } catch (outerError) {
+    console.error('Error in handleGenerateImageFromClipboard:', outerError);
+    showNotification(`エラー: ${outerError.message}`, 'error');
   }
 }
 
