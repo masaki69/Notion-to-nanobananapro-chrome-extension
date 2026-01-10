@@ -4,7 +4,6 @@ console.log('Notion to Nanobanana Pro: Content script loaded');
 // Listen for messages from background script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('Message received in content script:', request);
-  alert('Message received: ' + request.action); // Debug alert
   if (request.action === 'showPromptModal') {
     // Read from clipboard instead of selection
     handleGenerateImageFromClipboard();
