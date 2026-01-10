@@ -86,27 +86,31 @@ chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
     console.log('Extension installed');
 
-    // Set up default presets for structured data
+    // Set up default presets for design/style variations (in Japanese)
     const defaultPresets = [
       {
-        name: "Infographic from List",
-        prompt: "Create a professional infographic based on this information:\n{text}\n\nMake it visually appealing, use icons, charts if applicable, modern design"
+        name: "シンプル・ミニマル",
+        prompt: "以下の内容をシンプルでミニマルなデザインで視覚化してください：\n{text}\n\nホワイトスペースを活用し、クリーンで洗練されたレイアウト、控えめな色使い、明確な階層構造で表現してください"
       },
       {
-        name: "Diagram from Structure",
-        prompt: "Create a clear diagram or flowchart visualizing this structure:\n{text}\n\nUse boxes, arrows, and labels. Clean, professional style"
+        name: "モノトーン",
+        prompt: "以下の内容をモノトーンスタイルで視覚化してください：\n{text}\n\n白黒・グレースケールのみを使用し、高コントラスト、エレガントで洗練されたデザイン、タイポグラフィを重視してください"
       },
       {
-        name: "Table Visualization",
-        prompt: "Create a visual representation of this data:\n{text}\n\nUse charts, graphs, or visual data representation. Clean, modern style"
+        name: "カラフル・キャッチー",
+        prompt: "以下の内容を鮮やかでキャッチーなデザインで視覚化してください：\n{text}\n\nビビッドな色使い、グラデーション、目を引くビジュアル、ポップで明るい雰囲気で表現してください"
       },
       {
-        name: "Concept Map",
-        prompt: "Create a concept map or mind map from:\n{text}\n\nShow relationships between items, use colors, hierarchical structure"
+        name: "プロフェッショナル",
+        prompt: "以下の内容をプロフェッショナルなビジネススタイルで視覚化してください：\n{text}\n\nコーポレートカラー、信頼感のある配色、整然としたレイアウト、ビジネスシーンに適した洗練されたデザインで表現してください"
       },
       {
-        name: "Timeline/Process",
-        prompt: "Create a timeline or process flow from:\n{text}\n\nShow sequential steps or chronological order, use arrows and clear labels"
+        name: "イラスト風",
+        prompt: "以下の内容を手描き風のイラストスタイルで視覚化してください：\n{text}\n\n温かみのあるイラストレーション、アーティスティックなタッチ、親しみやすい雰囲気、手書き要素を取り入れてください"
+      },
+      {
+        name: "モダン・スタイリッシュ",
+        prompt: "以下の内容をモダンでスタイリッシュなデザインで視覚化してください：\n{text}\n\n最新のデザイントレンド、グラデーション、ガラスモーフィズム、ニューモーフィズムなどの現代的なスタイルで表現してください"
       }
     ];
 
@@ -114,5 +118,24 @@ chrome.runtime.onInstalled.addListener((details) => {
 
     // Open options page on install
     chrome.runtime.openOptionsPage();
+  }
+
+  // Create context menu
+  chrome.contextMenus.create({
+    id: 'nanobanana-generate-image',
+    title: '画像を生成 (Generate Image)',
+    contexts: ['selection'],
+    documentUrlPatterns: ['https://*.notion.so/*']
+  });
+});
+
+// Handle context menu click
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === 'nanobanana-generate-image') {
+    // Send message to content script
+    chrome.tabs.sendMessage(tab.id, {
+      action: 'showPromptModal',
+      selectedText: info.selectionText
+    });
   }
 });

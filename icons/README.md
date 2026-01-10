@@ -6,9 +6,10 @@
 
 以下のサイズのPNG画像を作成してください：
 
-- `icon16.png` - 16x16 pixels
-- `icon48.png` - 48x48 pixels
-- `icon128.png` - 128x128 pixels
+- `icon16.png` - 16x16 pixels (ツールバーアイコン用)
+- `icon32.png` - 32x32 pixels (Retinaディスプレイ用)
+- `icon48.png` - 48x48 pixels (拡張機能管理ページ用)
+- `icon128.png` - 128x128 pixels (Chromeウェブストア用)
 
 ## デザインの推奨事項
 

@@ -75,7 +75,7 @@ NotionのブロックテキストからGemini Nanobanana Proで画像を生成�
 2. 画像を生成したいテキストが含まれるブロックを選択
    - マウスでテキストをドラッグして選択
 
-3. 「Generate Image」ボタンが表示されるのでクリック
+3. 選択したテキストを右クリックし、コンテキストメニューから**「画像を生成 (Generate Image)」**を選択
 
 4. プロンプト選択モーダルが表示されます
 
@@ -113,14 +113,14 @@ NotionのブロックテキストからGemini Nanobanana Proで画像を生成�
 → 美しい日本の風景画が生成されてNotionに追加されます
 ```
 
-### 例2: プリセットを使用（構造化データ）
+### 例2: プリセットを使用（デザインスタイル指定）
 ```
-プリセット設定:
-名前: Infographic from List
-テンプレート: "Create a professional infographic based on this information:
+デフォルトプリセット:
+名前: シンプル・ミニマル
+テンプレート: "以下の内容をシンプルでミニマルなデザインで視覚化してください：
 {text}
 
-Make it visually appealing, use icons, charts if applicable, modern design"
+ホワイトスペースを活用し、クリーンで洗練されたレイアウト、控えめな色使い、明確な階層構造で表現してください"
 
 選択するテキスト（Notionの箇条書き）:
 • プロジェクト管理ツールの比較
@@ -129,9 +129,10 @@ Make it visually appealing, use icons, charts if applicable, modern design"
 • Notion: オールインワン、柔軟
 • Monday.com: 自動化機能、レポート
 
-→ 「Generate Image」→「プリセットを使用」→ "Infographic from List"を選択
-→ プロジェクト管理ツールの比較インフォグラフィックが生成されます
-→ アイコン、色分け、視覚的に整理された画像が作成されます
+→ 右クリック→「画像を生成 (Generate Image)」
+→ 「プリセットを使用」→ "シンプル・ミニマル"を選択
+→ ミニマルデザインでプロジェクト管理ツールの比較図が生成されます
+→ シンプルで洗練された、視覚的にすっきりした画像が作成されます
 ```
 
 ### 例3: カスタムプロンプトを入力
@@ -144,7 +145,7 @@ Make it visually appealing, use icons, charts if applicable, modern design"
 → SF風のコンセプトアートが生成されます
 ```
 
-### 例4: 表データからグラフを生成
+### 例4: 表データをカラフルなデザインで
 ```
 選択するテキスト（Notionの表）:
 | 月 | 売上 |
@@ -152,12 +153,12 @@ Make it visually appealing, use icons, charts if applicable, modern design"
 | 2月 | 150万 |
 | 3月 | 180万 |
 
-→ 「Generate Image」→プリセット「Table Visualization」を選択
-→ 月別売上の美しいグラフが生成されます
-→ バーチャート、色分け、ラベル付きの視覚的な表現
+→ 「Generate Image」→プリセット「カラフル・キャッチー」を選択
+→ 月別売上を鮮やかなビジュアルで表現
+→ ビビッドな色使い、グラデーション、目を引くグラフが生成されます
 ```
 
-### 例5: プロセスフローを図解
+### 例5: プロセスフローをモダンなスタイルで
 ```
 選択するテキスト（Notionの箇条書き）:
 1. 要件定義
@@ -167,70 +168,61 @@ Make it visually appealing, use icons, charts if applicable, modern design"
 5. デプロイ
 6. 運用・保守
 
-→ 「Generate Image」→プリセット「Timeline/Process」を選択
-→ 開発プロセスのタイムライン図が生成されます
-→ 矢印、ステップ番号、クリーンなビジュアル
+→ 「Generate Image」→プリセット「モダン・スタイリッシュ」を選択
+→ 開発プロセスが最新デザイントレンドで表現されます
+→ グラデーション、現代的なビジュアル、スタイリッシュなタイムライン図が生成されます
 ```
 
 ### プリセットの例
 
-構造化データ（箇条書き・表）向けのプリセット：
+デザイン・スタイル重視のプリセット（デフォルトで設定済み）：
 
-1. **Infographic from List** (箇条書きからインフォグラフィック)
+1. **シンプル・ミニマル**
    ```
-   Create a professional infographic based on this information:
+   以下の内容をシンプルでミニマルなデザインで視覚化してください：
    {text}
 
-   Make it visually appealing, use icons, charts if applicable, modern design
+   ホワイトスペースを活用し、クリーンで洗練されたレイアウト、控えめな色使い、明確な階層構造で表現してください
    ```
 
-2. **Diagram from Structure** (構造図・フローチャート)
+2. **モノトーン**
    ```
-   Create a clear diagram or flowchart visualizing this structure:
+   以下の内容をモノトーンスタイルで視覚化してください：
    {text}
 
-   Use boxes, arrows, and labels. Clean, professional style
+   白黒・グレースケールのみを使用し、高コントラスト、エレガントで洗練されたデザイン、タイポグラフィを重視してください
    ```
 
-3. **Table Visualization** (表データの視覚化)
+3. **カラフル・キャッチー**
    ```
-   Create a visual representation of this data:
+   以下の内容を鮮やかでキャッチーなデザインで視覚化してください：
    {text}
 
-   Use charts, graphs, or visual data representation. Clean, modern style
+   ビビッドな色使い、グラデーション、目を引くビジュアル、ポップで明るい雰囲気で表現してください
    ```
 
-4. **Concept Map** (コンセプトマップ)
+4. **プロフェッショナル**
    ```
-   Create a concept map or mind map from:
+   以下の内容をプロフェッショナルなビジネススタイルで視覚化してください：
    {text}
 
-   Show relationships between items, use colors, hierarchical structure
+   コーポレートカラー、信頼感のある配色、整然としたレイアウト、ビジネスシーンに適した洗練されたデザインで表現してください
    ```
 
-5. **Timeline/Process** (タイムライン・プロセス図)
+5. **イラスト風**
    ```
-   Create a timeline or process flow from:
+   以下の内容を手描き風のイラストスタイルで視覚化してください：
    {text}
 
-   Show sequential steps or chronological order, use arrows and clear labels
+   温かみのあるイラストレーション、アーティスティックなタッチ、親しみやすい雰囲気、手書き要素を取り入れてください
    ```
 
-一般的な画像スタイル向けプリセット：
+6. **モダン・スタイリッシュ**
+   ```
+   以下の内容をモダンでスタイリッシュなデザインで視覚化してください：
+   {text}
 
-6. **Realistic Photo**
-   ```
-   Create a photorealistic image of {text}, 4K, detailed, professional photography
-   ```
-
-7. **Anime Style**
-   ```
-   Anime-style illustration of {text}, vibrant colors, Japanese animation style
-   ```
-
-8. **Digital Art**
-   ```
-   Digital art, {text}, trending on artstation, highly detailed, fantasy art
+   最新のデザイントレンド、グラデーション、ガラスモーフィズム、ニューモーフィズムなどの現代的なスタイルで表現してください
    ```
 
 ## 🛠️ 技術スタック
