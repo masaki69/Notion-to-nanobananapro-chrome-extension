@@ -86,27 +86,27 @@ chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
     console.log('Extension installed');
 
-    // Set up default presets for structured data
+    // Set up default presets for structured data (in Japanese)
     const defaultPresets = [
       {
-        name: "Infographic from List",
-        prompt: "Create a professional infographic based on this information:\n{text}\n\nMake it visually appealing, use icons, charts if applicable, modern design"
+        name: "リストからインフォグラフィック",
+        prompt: "以下の情報を元にプロフェッショナルなインフォグラフィックを作成してください：\n{text}\n\n視覚的に魅力的で、アイコン、チャート、モダンなデザインを使用してください"
       },
       {
-        name: "Diagram from Structure",
-        prompt: "Create a clear diagram or flowchart visualizing this structure:\n{text}\n\nUse boxes, arrows, and labels. Clean, professional style"
+        name: "構造図・フローチャート",
+        prompt: "以下の構造を視覚化した明確な図表またはフローチャートを作成してください：\n{text}\n\nボックス、矢印、ラベルを使用し、クリーンでプロフェッショナルなスタイルにしてください"
       },
       {
-        name: "Table Visualization",
-        prompt: "Create a visual representation of this data:\n{text}\n\nUse charts, graphs, or visual data representation. Clean, modern style"
+        name: "表データの視覚化",
+        prompt: "以下のデータを視覚的に表現してください：\n{text}\n\nチャート、グラフ、またはビジュアルデータ表現を使用し、クリーンでモダンなスタイルにしてください"
       },
       {
-        name: "Concept Map",
-        prompt: "Create a concept map or mind map from:\n{text}\n\nShow relationships between items, use colors, hierarchical structure"
+        name: "コンセプトマップ",
+        prompt: "以下からコンセプトマップまたはマインドマップを作成してください：\n{text}\n\n項目間の関係を示し、色を使い、階層構造を表現してください"
       },
       {
-        name: "Timeline/Process",
-        prompt: "Create a timeline or process flow from:\n{text}\n\nShow sequential steps or chronological order, use arrows and clear labels"
+        name: "タイムライン・プロセス図",
+        prompt: "以下からタイムラインまたはプロセスフローを作成してください：\n{text}\n\n順次的なステップまたは時系列順序を示し、矢印と明確なラベルを使用してください"
       }
     ];
 
@@ -114,5 +114,24 @@ chrome.runtime.onInstalled.addListener((details) => {
 
     // Open options page on install
     chrome.runtime.openOptionsPage();
+  }
+
+  // Create context menu
+  chrome.contextMenus.create({
+    id: 'nanobanana-generate-image',
+    title: '画像を生成 (Generate Image)',
+    contexts: ['selection'],
+    documentUrlPatterns: ['https://*.notion.so/*']
+  });
+});
+
+// Handle context menu click
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === 'nanobanana-generate-image') {
+    // Send message to content script
+    chrome.tabs.sendMessage(tab.id, {
+      action: 'showPromptModal',
+      selectedText: info.selectionText
+    });
   }
 });

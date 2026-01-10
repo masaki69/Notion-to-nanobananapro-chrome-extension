@@ -75,7 +75,7 @@ NotionのブロックテキストからGemini Nanobanana Proで画像を生成�
 2. 画像を生成したいテキストが含まれるブロックを選択
    - マウスでテキストをドラッグして選択
 
-3. 「Generate Image」ボタンが表示されるのでクリック
+3. 選択したテキストを右クリックし、コンテキストメニューから**「画像を生成 (Generate Image)」**を選択
 
 4. プロンプト選択モーダルが表示されます
 
@@ -115,12 +115,12 @@ NotionのブロックテキストからGemini Nanobanana Proで画像を生成�
 
 ### 例2: プリセットを使用（構造化データ）
 ```
-プリセット設定:
-名前: Infographic from List
-テンプレート: "Create a professional infographic based on this information:
+デフォルトプリセット:
+名前: リストからインフォグラフィック
+テンプレート: "以下の情報を元にプロフェッショナルなインフォグラフィックを作成してください：
 {text}
 
-Make it visually appealing, use icons, charts if applicable, modern design"
+視覚的に魅力的で、アイコン、チャート、モダンなデザインを使用してください"
 
 選択するテキスト（Notionの箇条書き）:
 • プロジェクト管理ツールの比較
@@ -129,7 +129,8 @@ Make it visually appealing, use icons, charts if applicable, modern design"
 • Notion: オールインワン、柔軟
 • Monday.com: 自動化機能、レポート
 
-→ 「Generate Image」→「プリセットを使用」→ "Infographic from List"を選択
+→ 右クリック→「画像を生成 (Generate Image)」
+→ 「プリセットを使用」→ "リストからインフォグラフィック"を選択
 → プロジェクト管理ツールの比較インフォグラフィックが生成されます
 → アイコン、色分け、視覚的に整理された画像が作成されます
 ```
@@ -174,46 +175,46 @@ Make it visually appealing, use icons, charts if applicable, modern design"
 
 ### プリセットの例
 
-構造化データ（箇条書き・表）向けのプリセット：
+構造化データ（箇条書き・表）向けのプリセット（デフォルトで設定済み）：
 
-1. **Infographic from List** (箇条書きからインフォグラフィック)
+1. **リストからインフォグラフィック**
    ```
-   Create a professional infographic based on this information:
+   以下の情報を元にプロフェッショナルなインフォグラフィックを作成してください：
    {text}
 
-   Make it visually appealing, use icons, charts if applicable, modern design
+   視覚的に魅力的で、アイコン、チャート、モダンなデザインを使用してください
    ```
 
-2. **Diagram from Structure** (構造図・フローチャート)
+2. **構造図・フローチャート**
    ```
-   Create a clear diagram or flowchart visualizing this structure:
+   以下の構造を視覚化した明確な図表またはフローチャートを作成してください：
    {text}
 
-   Use boxes, arrows, and labels. Clean, professional style
+   ボックス、矢印、ラベルを使用し、クリーンでプロフェッショナルなスタイルにしてください
    ```
 
-3. **Table Visualization** (表データの視覚化)
+3. **表データの視覚化**
    ```
-   Create a visual representation of this data:
+   以下のデータを視覚的に表現してください：
    {text}
 
-   Use charts, graphs, or visual data representation. Clean, modern style
+   チャート、グラフ、またはビジュアルデータ表現を使用し、クリーンでモダンなスタイルにしてください
    ```
 
-4. **Concept Map** (コンセプトマップ)
+4. **コンセプトマップ**
    ```
-   Create a concept map or mind map from:
+   以下からコンセプトマップまたはマインドマップを作成してください：
    {text}
 
-   Show relationships between items, use colors, hierarchical structure
+   項目間の関係を示し、色を使い、階層構造を表現してください
    ```
 
-5. **Timeline/Process** (タイムライン・プロセス図)
+5. **タイムライン・プロセス図**
    ```
-   Create a timeline or process flow from:
+   以下からタイムラインまたはプロセスフローを作成してください：
    {text}
 
-   Show sequential steps or chronological order, use arrows and clear labels
+   順次的なステップまたは時系列順序を示し、矢印と明確なラベルを使用してください
    ```
 
 一般的な画像スタイル向けプリセット：
