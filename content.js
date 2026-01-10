@@ -160,7 +160,7 @@ async function showPromptModal(selectedText) {
         <div class="nanobanana-prompt-option">
           <input type="radio" id="prompt-selected-text" name="prompt-type" value="selected" checked>
           <label for="prompt-selected-text">
-            <strong>選択したテキストを使用 (Use selected text)</strong>
+            <strong>そのまま生成 (Generate as-is)</strong>
             <div class="prompt-preview">${escapeHtml(selectedText)}</div>
           </label>
         </div>
