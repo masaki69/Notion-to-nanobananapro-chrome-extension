@@ -20,7 +20,22 @@ function getSelectedMarkdown() {
   // Try to extract markdown from Notion blocks first
   const markdownFromBlocks = extractMarkdownFromSelection(range);
   if (markdownFromBlocks && markdownFromBlocks.trim()) {
-    return markdownFromBlocks;
+    // Check if we got reasonable content (not just headers without content)
+    const lines = markdownFromBlocks.split('\n').filter(l => l.trim());
+    const hasContent = lines.some(l => !l.startsWith('#'));
+    if (hasContent) {
+      return markdownFromBlocks;
+    }
+  }
+
+  // Fallback: Try aggressive text extraction from the selection
+  try {
+    const aggressiveText = extractAllTextFromSelection(range);
+    if (aggressiveText && aggressiveText.trim()) {
+      return convertTextToMarkdown(aggressiveText);
+    }
+  } catch (e) {
+    console.log('Aggressive extraction failed:', e);
   }
 
   // Fallback: Try to get HTML content and convert to markdown
@@ -43,9 +58,151 @@ function getSelectedMarkdown() {
     console.log('HTML extraction failed, using plain text:', e);
   }
 
-  // Final fallback: convert plain text with pattern detection
+  // Final fallback: try to extract with forced line breaks between blocks
+  try {
+    const textWithBreaks = extractTextWithLineBreaks(range);
+    if (textWithBreaks && textWithBreaks.trim()) {
+      return convertTextToMarkdown(textWithBreaks);
+    }
+  } catch (e) {
+    console.log('Line break extraction failed:', e);
+  }
+
+  // Last resort: convert plain text with pattern detection
   const plainText = selection.toString();
   return convertTextToMarkdown(plainText);
+}
+
+// Extract text from selection while forcing line breaks between blocks
+function extractTextWithLineBreaks(range) {
+  const container = document.createElement('div');
+  container.appendChild(range.cloneContents());
+
+  // Get all block-level elements and text nodes
+  const lines = [];
+
+  function processNode(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent.trim();
+      if (text) {
+        lines.push(text);
+      }
+      return;
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+    const tagName = node.tagName.toLowerCase();
+    const isBlock = ['div', 'p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li', 'blockquote', 'pre'].includes(tagName);
+
+    if (isBlock) {
+      // Process children and add as a single line
+      const childTexts = [];
+      for (const child of node.childNodes) {
+        if (child.nodeType === Node.TEXT_NODE) {
+          const text = child.textContent.trim();
+          if (text) childTexts.push(text);
+        } else if (child.nodeType === Node.ELEMENT_NODE) {
+          const childTag = child.tagName.toLowerCase();
+          if (['span', 'a', 'strong', 'em', 'b', 'i', 'code'].includes(childTag)) {
+            const text = child.textContent.trim();
+            if (text) childTexts.push(text);
+          } else {
+            // Nested block - process separately
+            processNode(child);
+          }
+        }
+      }
+      if (childTexts.length > 0) {
+        lines.push(childTexts.join(' '));
+      }
+    } else {
+      // Process children
+      for (const child of node.childNodes) {
+        processNode(child);
+      }
+    }
+  }
+
+  processNode(container);
+
+  return lines.join('\n');
+}
+
+// Aggressively extract all text from selected Notion blocks
+function extractAllTextFromSelection(range) {
+  const lines = [];
+
+  // Get the common ancestor and find all text-containing elements
+  const container = range.commonAncestorContainer;
+  const rootElement = container.nodeType === Node.TEXT_NODE
+    ? container.parentElement
+    : container;
+
+  // Find the Notion page content area
+  const notionContent = rootElement.closest('.notion-page-content') ||
+                        rootElement.closest('[class*="notion"]') ||
+                        rootElement;
+
+  // Find all blocks that might contain selected text
+  const allBlocks = notionContent.querySelectorAll('[data-block-id]');
+
+  for (const block of allBlocks) {
+    // Check if this block or any of its content is in the selection
+    if (!range.intersectsNode(block)) continue;
+
+    // Get all text from this block, including nested contenteditable elements
+    const blockText = extractAllBlockText(block);
+    if (blockText && blockText.trim()) {
+      const blockType = getNotionBlockType(block);
+      const formatted = formatBlockAsMarkdown(blockType, blockText.trim(), block);
+      lines.push(formatted);
+    }
+  }
+
+  // If no blocks found, try to get text from all contenteditable elements in selection
+  if (lines.length === 0) {
+    const editables = notionContent.querySelectorAll('[contenteditable="true"]');
+    for (const editable of editables) {
+      if (range.intersectsNode(editable)) {
+        const text = editable.textContent?.trim();
+        if (text) {
+          lines.push(text);
+        }
+      }
+    }
+  }
+
+  return lines.join('\n');
+}
+
+// Extract all text from a block, including nested elements
+function extractAllBlockText(block) {
+  // First try the standard method
+  const standardText = getBlockText(block);
+  if (standardText && standardText.trim()) {
+    return standardText;
+  }
+
+  // If that fails, try getting all contenteditable text
+  const editables = block.querySelectorAll('[contenteditable="true"]');
+  const texts = [];
+  for (const editable of editables) {
+    const text = editable.textContent?.trim();
+    if (text) {
+      texts.push(text);
+    }
+  }
+
+  if (texts.length > 0) {
+    return texts.join(' ');
+  }
+
+  // Last resort: get all text content
+  const clone = block.cloneNode(true);
+  // Remove nested blocks to avoid duplication
+  clone.querySelectorAll('[data-block-id]').forEach(el => el.remove());
+  return clone.textContent?.trim() || '';
 }
 
 // Convert plain text to markdown by detecting common patterns
