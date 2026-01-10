@@ -15,20 +15,8 @@ function getSelectedMarkdown() {
   const selection = window.getSelection();
   if (!selection.rangeCount) return null;
 
-  const range = selection.getRangeAt(0);
-
-  // Method 1: Get actual Notion blocks from the document (not cloned)
-  const markdown = extractMarkdownFromSelection(range);
-  if (markdown && markdown.trim()) {
-    return markdown;
-  }
-
-  // Method 2: Fallback to cloned content
-  const container = document.createElement('div');
-  container.appendChild(range.cloneContents());
-  const fallbackMarkdown = extractMarkdownFromNotionHtml(container);
-
-  return fallbackMarkdown || selection.toString();
+  // Simply use the selection text - Notion preserves line breaks
+  return selection.toString();
 }
 
 // Extract markdown from actual Notion blocks in selection
@@ -769,23 +757,25 @@ async function showPromptModal(selectedText) {
     generateBtn.addEventListener('click', () => {
       const selectedType = modal.querySelector('input[name="prompt-type"]:checked').value;
       let finalPrompt = '';
+      let stylePrompt = '';
 
       if (selectedType === 'selected') {
-        // Use selected text as-is
+        // Use selected text as-is (no style override)
         finalPrompt = selectedText;
       } else if (selectedType === 'preset' && presetSelector) {
         const presetIndex = parseInt(presetSelector.value);
         const preset = presets[presetIndex];
-        // Automatically append selected text after preset prompt
-        finalPrompt = `${preset.prompt}\n\n対象は以下のテキストです：\n${selectedText}`;
+        // Send style as separate instruction
+        stylePrompt = preset.prompt;
+        finalPrompt = `[STYLE]: ${stylePrompt}\n\n[CONTENT]:\n${selectedText}`;
       } else if (selectedType === 'custom' && customInput) {
         const customPrompt = customInput.value.trim();
         if (!customPrompt) {
           showNotification('カスタムプロンプトを入力してください (Please enter custom prompt)', 'error');
           return;
         }
-        // Automatically append selected text after custom prompt
-        finalPrompt = `${customPrompt}\n\n対象は以下のテキストです：\n${selectedText}`;
+        // Send custom style as separate instruction
+        finalPrompt = `[STYLE]: ${customPrompt}\n\n[CONTENT]:\n${selectedText}`;
       }
 
       overlay.remove();
