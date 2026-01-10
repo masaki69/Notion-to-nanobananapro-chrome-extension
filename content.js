@@ -17,165 +17,173 @@ function getSelectedMarkdown() {
 
   const range = selection.getRangeAt(0);
 
-  // Get all Notion blocks within or intersecting the selection
-  const blocks = getSelectedNotionBlocks(range);
+  // Clone the selected content
+  const container = document.createElement('div');
+  container.appendChild(range.cloneContents());
 
-  if (blocks.length === 0) {
-    // Fallback: try to convert cloned HTML
-    const container = document.createElement('div');
-    container.appendChild(range.cloneContents());
-    return htmlToMarkdown(container);
-  }
+  // Try to extract markdown from Notion's structure
+  const markdown = extractMarkdownFromNotionHtml(container);
 
-  // Convert Notion blocks to markdown
-  return notionBlocksToMarkdown(blocks);
+  return markdown || selection.toString();
 }
 
-// Get all Notion blocks that intersect with the selection range
-function getSelectedNotionBlocks(range) {
-  const blocks = [];
-  const allBlocks = document.querySelectorAll('[data-block-id]');
-
-  for (const block of allBlocks) {
-    if (range.intersectsNode(block)) {
-      blocks.push(block);
-    }
-  }
-
-  return blocks;
-}
-
-// Convert Notion blocks to markdown
-function notionBlocksToMarkdown(blocks) {
+// Extract markdown from Notion's HTML structure
+function extractMarkdownFromNotionHtml(container) {
   const lines = [];
 
-  for (const block of blocks) {
-    const markdown = convertNotionBlockToMarkdown(block);
-    if (markdown) {
-      lines.push(markdown);
+  // Find all block-level elements (divs with data-block-id or notion classes)
+  const blocks = container.querySelectorAll('[data-block-id]');
+
+  if (blocks.length > 0) {
+    // Filter to get only leaf blocks (blocks that don't contain other blocks)
+    const leafBlocks = Array.from(blocks).filter(block => {
+      return block.querySelector('[data-block-id]') === null;
+    });
+
+    for (const block of leafBlocks) {
+      const line = convertBlockToMarkdownLine(block);
+      if (line) lines.push(line);
     }
   }
 
-  return lines.join('\n').trim();
+  // If no blocks found, try to parse the HTML structure directly
+  if (lines.length === 0) {
+    parseNotionContent(container, lines);
+  }
+
+  return lines.join('\n');
 }
 
-// Convert a single Notion block to markdown
-function convertNotionBlockToMarkdown(block) {
-  const className = block.className || '';
-  const textContent = getBlockTextContent(block);
+// Parse Notion content recursively
+function parseNotionContent(element, lines, depth = 0) {
+  for (const node of element.childNodes) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent.trim();
+      if (text) {
+        lines.push(text);
+      }
+    } else if (node.nodeType === Node.ELEMENT_NODE) {
+      const tagName = node.tagName.toLowerCase();
+      const className = node.className || '';
 
-  if (!textContent.trim()) return '';
+      // Check for line breaks
+      if (tagName === 'br') {
+        continue;
+      }
 
-  // Detect block type from class name
-  if (className.includes('header-block') || className.includes('heading')) {
-    // Check for heading level
-    if (className.includes('header-block') && !className.includes('sub')) {
-      return `# ${textContent}`;
+      // Check for block-level elements that should create new lines
+      if (tagName === 'div' || tagName === 'p') {
+        const text = getFormattedText(node);
+        if (text.trim()) {
+          // Detect list markers from Notion's structure
+          const line = detectAndFormatLine(node, text, className);
+          lines.push(line);
+        }
+      } else if (['span', 'a', 'strong', 'em', 'b', 'i', 'code'].includes(tagName)) {
+        // Inline elements - check if parent is not already processed
+        if (!node.closest('div[data-block-id], p')) {
+          const text = getFormattedText(node);
+          if (text.trim()) {
+            lines.push(text);
+          }
+        }
+      } else {
+        // Recursively process other elements
+        parseNotionContent(node, lines, depth + 1);
+      }
     }
-    if (className.includes('sub_header') || className.includes('heading_2')) {
-      return `## ${textContent}`;
-    }
-    if (className.includes('sub_sub_header') || className.includes('heading_3')) {
-      return `### ${textContent}`;
-    }
-    return `# ${textContent}`;
+  }
+}
+
+// Detect line type and format accordingly
+function detectAndFormatLine(node, text, className) {
+  // Check for numbered list pattern (starts with number)
+  const numberedMatch = text.match(/^(\d+)[.)\]]\s*/);
+  if (numberedMatch) {
+    return text; // Already formatted as numbered list
   }
 
-  if (className.includes('bulleted_list')) {
-    return `- ${textContent}`;
+  // Check for bullet point indicators in the DOM
+  const hasBullet = node.querySelector('[style*="list-style"]') ||
+                    className.includes('bulleted') ||
+                    node.textContent.match(/^[•\-\*]\s/);
+  if (hasBullet) {
+    const cleanText = text.replace(/^[•\-\*]\s*/, '');
+    return `- ${cleanText}`;
   }
 
-  if (className.includes('numbered_list')) {
-    return `1. ${textContent}`;
-  }
-
-  if (className.includes('to_do')) {
-    const checkbox = block.querySelector('[role="checkbox"], input[type="checkbox"]');
+  // Check for checkbox
+  const checkbox = node.querySelector('[role="checkbox"], input[type="checkbox"]');
+  if (checkbox || className.includes('to_do')) {
     const isChecked = checkbox && (checkbox.getAttribute('aria-checked') === 'true' || checkbox.checked);
-    return `- [${isChecked ? 'x' : ' '}] ${textContent}`;
+    return `- [${isChecked ? 'x' : ' '}] ${text}`;
   }
 
+  // Check for headers
+  if (className.includes('header') || className.includes('heading')) {
+    if (className.includes('sub_sub') || className.includes('heading_3')) {
+      return `### ${text}`;
+    }
+    if (className.includes('sub') || className.includes('heading_2')) {
+      return `## ${text}`;
+    }
+    return `# ${text}`;
+  }
+
+  // Check for quote
   if (className.includes('quote')) {
-    return `> ${textContent}`;
+    return `> ${text}`;
   }
 
-  if (className.includes('code')) {
-    return `\`\`\`\n${textContent}\n\`\`\``;
-  }
-
-  if (className.includes('callout')) {
-    return `> 💡 ${textContent}`;
-  }
-
-  if (className.includes('toggle')) {
-    return `<details>\n<summary>${textContent}</summary>\n</details>`;
-  }
-
-  // Default: plain paragraph
-  return textContent;
+  return text;
 }
 
-// Get text content from a Notion block, preserving inline formatting
-function getBlockTextContent(block) {
-  // Find the content element
-  const contentEl = block.querySelector('[contenteditable="true"]') ||
-                    block.querySelector('[data-content-editable-leaf]') ||
-                    block.querySelector('.notranslate');
-
-  if (!contentEl) {
-    return block.textContent?.trim() || '';
-  }
-
-  // Process inline formatting
-  return processInlineFormatting(contentEl);
-}
-
-// Process inline formatting (bold, italic, code, links)
-function processInlineFormatting(element) {
+// Get formatted text from an element, preserving inline formatting
+function getFormattedText(element) {
   let result = '';
 
   for (const node of element.childNodes) {
     if (node.nodeType === Node.TEXT_NODE) {
       result += node.textContent;
     } else if (node.nodeType === Node.ELEMENT_NODE) {
-      const style = node.style;
       const tagName = node.tagName.toLowerCase();
-      let text = processInlineFormatting(node);
+      const style = node.style || {};
+      let text = getFormattedText(node);
 
-      // Check for bold
-      if (style.fontWeight === '600' || style.fontWeight === '700' ||
-          style.fontWeight === 'bold' || tagName === 'strong' || tagName === 'b') {
-        text = `**${text}**`;
-      }
+      if (!text) continue;
 
-      // Check for italic
-      if (style.fontStyle === 'italic' || tagName === 'em' || tagName === 'i') {
-        text = `*${text}*`;
-      }
+      // Apply formatting based on tag or style
+      const isBold = tagName === 'strong' || tagName === 'b' ||
+                     style.fontWeight === '600' || style.fontWeight === '700' || style.fontWeight === 'bold';
+      const isItalic = tagName === 'em' || tagName === 'i' || style.fontStyle === 'italic';
+      const isStrike = tagName === 's' || tagName === 'del' || (style.textDecoration && style.textDecoration.includes('line-through'));
+      const isCode = tagName === 'code';
 
-      // Check for strikethrough
-      if (style.textDecoration?.includes('line-through') || tagName === 's' || tagName === 'del') {
-        text = `~~${text}~~`;
-      }
+      if (isCode) text = `\`${text}\``;
+      if (isBold) text = `**${text}**`;
+      if (isItalic) text = `*${text}*`;
+      if (isStrike) text = `~~${text}~~`;
 
-      // Check for code
-      if (tagName === 'code' || node.classList?.contains('notion-text-code')) {
-        text = `\`${text}\``;
-      }
-
-      // Check for links
       if (tagName === 'a') {
         const href = node.getAttribute('href');
-        if (href) {
-          text = `[${text}](${href})`;
-        }
+        if (href) text = `[${text}](${href})`;
       }
 
       result += text;
     }
   }
 
-  return result.trim();
+  return result;
+}
+
+// Convert a single block element to markdown line
+function convertBlockToMarkdownLine(block) {
+  const className = block.className || '';
+  const text = getFormattedText(block);
+
+  if (!text.trim()) return '';
+
+  return detectAndFormatLine(block, text.trim(), className);
 }
 
 // Convert HTML to Markdown
