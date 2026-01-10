@@ -38,9 +38,11 @@ async function handleGenerateImage({ prompt }) {
 // Generate image using Gemini Nanobanana Pro API
 async function generateImageWithGemini(prompt, apiKey) {
   try {
-    // Gemini API endpoint for image generation
-    // Note: This is a placeholder - adjust based on actual Gemini Nanobanana Pro API
-    const endpoint = `${GEMINI_API_BASE}/models/nanobanana-pro:generateImage`;
+    // Gemini API endpoint for Nano Banana Pro (Gemini 3 Pro Image)
+    // Using gemini-2.5-flash-image for faster generation
+    // Alternative: gemini-3-pro-image-preview for highest quality
+    const modelName = 'gemini-2.5-flash-image';
+    const endpoint = `${GEMINI_API_BASE}/models/${modelName}:generateContent`;
 
     const response = await fetch(`${endpoint}?key=${apiKey}`, {
       method: 'POST',
@@ -48,10 +50,16 @@ async function generateImageWithGemini(prompt, apiKey) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        prompt: prompt,
-        // Add any additional parameters required by Nanobanana Pro
-        numberOfImages: 1,
-        aspectRatio: '16:9'
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          responseModalities: ['IMAGE'],
+          temperature: 0.7,
+          topP: 0.95
+        }
       })
     });
 
@@ -63,18 +71,32 @@ async function generateImageWithGemini(prompt, apiKey) {
     }
 
     const data = await response.json();
+    console.log('API Response:', data);
 
-    // Extract image URL from response
-    // Adjust based on actual API response structure
-    if (data.images && data.images.length > 0) {
-      return data.images[0].url || data.images[0].data;
+    // Extract image data from response
+    // Gemini generateContent returns image data in candidates
+    if (data.candidates && data.candidates.length > 0) {
+      const candidate = data.candidates[0];
+
+      if (candidate.content && candidate.content.parts) {
+        for (const part of candidate.content.parts) {
+          // Check for inline image data
+          if (part.inlineData && part.inlineData.data) {
+            const mimeType = part.inlineData.mimeType || 'image/jpeg';
+            const imageData = part.inlineData.data;
+            // Convert base64 to data URL
+            return `data:${mimeType};base64,${imageData}`;
+          }
+
+          // Check for image URL
+          if (part.fileData && part.fileData.fileUri) {
+            return part.fileData.fileUri;
+          }
+        }
+      }
     }
 
-    if (data.generatedImages && data.generatedImages.length > 0) {
-      return data.generatedImages[0].url;
-    }
-
-    throw new Error('No image URL in API response');
+    throw new Error('No image data in API response. Response structure: ' + JSON.stringify(data));
   } catch (error) {
     console.error('Gemini API error:', error);
     throw new Error(`Failed to generate image: ${error.message}`);
