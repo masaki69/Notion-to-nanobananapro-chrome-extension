@@ -329,6 +329,30 @@ function getCurrentBlockElement() {
   return null;
 }
 
+// Get the last block element in the selection (for inserting below)
+function getLastSelectedBlockElement() {
+  const selection = window.getSelection();
+  if (selection.rangeCount > 0) {
+    const range = selection.getRangeAt(0);
+
+    // Get all blocks that intersect with selection
+    const allBlocks = document.querySelectorAll('[data-block-id]');
+    let lastBlock = null;
+
+    for (const block of allBlocks) {
+      if (range.intersectsNode(block)) {
+        // Check if this is a leaf block (no nested blocks)
+        if (!block.querySelector('[data-block-id]')) {
+          lastBlock = block;
+        }
+      }
+    }
+
+    return lastBlock;
+  }
+  return null;
+}
+
 // Handle image generation from context menu
 async function handleGenerateImageFromContextMenu(selectedText) {
   if (!selectedText || !selectedText.trim()) {
@@ -336,8 +360,8 @@ async function handleGenerateImageFromContextMenu(selectedText) {
     return;
   }
 
-  // Get current block element for insertion
-  const blockElement = getCurrentBlockElement();
+  // Get the LAST block element in selection (to insert BELOW it)
+  const lastBlockElement = getLastSelectedBlockElement() || getCurrentBlockElement();
 
   // Show prompt selection modal
   const prompt = await showPromptModal(selectedText);
@@ -357,9 +381,14 @@ async function handleGenerateImageFromContextMenu(selectedText) {
     });
 
     if (response.success && response.imageUrl) {
-      // Insert image directly into Notion DOM
-      insertImageIntoNotion(response.imageUrl, blockElement);
-      showNotification('画像を生成しました！ (Image generated and added!)', 'success');
+      // Insert image BELOW the selected text
+      const inserted = await insertImageIntoNotion(response.imageUrl, lastBlockElement);
+      if (inserted) {
+        showNotification('画像を生成しました！ (Image generated and added!)', 'success');
+      } else {
+        // Image is in clipboard, prompt user to paste manually
+        showNotification('画像をクリップボードにコピーしました。Ctrl+V (Mac: Cmd+V) でペーストしてください', 'info', 5000);
+      }
     } else {
       showNotification(`エラー: ${response.error}`, 'error');
     }
@@ -369,71 +398,90 @@ async function handleGenerateImageFromContextMenu(selectedText) {
   }
 }
 
-// Insert image into Notion page by simulating paste
+// Insert image into Notion page BELOW the target block
 async function insertImageIntoNotion(imageUrl, targetBlock) {
   try {
     // Convert base64 data URL to Blob
     const blob = await dataUrlToBlob(imageUrl);
 
-    // Find the editable element within the target block (BEFORE the selected text)
-    if (targetBlock) {
-      // Focus on the beginning of the target block to insert ABOVE it
-      const editableElement = targetBlock.querySelector('[contenteditable="true"]') ||
-                              targetBlock.querySelector('[data-content-editable-leaf]') ||
-                              targetBlock;
-
-      if (editableElement) {
-        // Click to focus the block
-        editableElement.focus();
-
-        // Move cursor to the beginning of the block
-        const selection = window.getSelection();
-        const range = document.createRange();
-        range.selectNodeContents(editableElement);
-        range.collapse(true); // Collapse to start
-        selection.removeAllRanges();
-        selection.addRange(range);
-
-        // Small delay to ensure focus
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        // Simulate pressing Enter to create a new line above, then move up
-        // This ensures the image is inserted ABOVE the selected text
-        document.execCommand('insertParagraph', false, null);
-
-        // Move cursor up to the new empty line
-        const upEvent = new KeyboardEvent('keydown', {
-          key: 'ArrowUp',
-          code: 'ArrowUp',
-          keyCode: 38,
-          which: 38,
-          bubbles: true
-        });
-        editableElement.dispatchEvent(upEvent);
-
-        await new Promise(resolve => setTimeout(resolve, 50));
-      }
-    }
-
-    // Write image to clipboard and paste
+    // First, copy image to clipboard
     try {
       const clipboardItem = new ClipboardItem({
         [blob.type]: blob
       });
       await navigator.clipboard.write([clipboardItem]);
-
-      // Trigger paste
-      document.execCommand('paste');
-
-      console.log('Image pasted into Notion');
+      console.log('Image copied to clipboard');
     } catch (clipboardError) {
-      console.log('Clipboard API failed, trying alternative method:', clipboardError);
-      // Fallback: Create a paste event with the image data
-      await pasteImageFallback(blob, targetBlock);
+      console.error('Failed to copy to clipboard:', clipboardError);
+      return false;
     }
+
+    // Find and position cursor at the END of the target block
+    if (targetBlock) {
+      const editableElement = targetBlock.querySelector('[contenteditable="true"]') ||
+                              targetBlock.querySelector('[data-content-editable-leaf]') ||
+                              targetBlock;
+
+      if (editableElement) {
+        // Focus the element
+        editableElement.focus();
+
+        // Move cursor to the END of the block
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(editableElement);
+        range.collapse(false); // false = collapse to END
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Press Enter to create a new line BELOW
+        const enterEvent = new KeyboardEvent('keydown', {
+          key: 'Enter',
+          code: 'Enter',
+          keyCode: 13,
+          which: 13,
+          bubbles: true,
+          cancelable: true
+        });
+        editableElement.dispatchEvent(enterEvent);
+
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Try to paste using execCommand
+        const pasted = document.execCommand('paste');
+        if (pasted) {
+          console.log('Image pasted successfully');
+          return true;
+        }
+
+        // Try keyboard shortcut simulation
+        const pasteEvent = new KeyboardEvent('keydown', {
+          key: 'v',
+          code: 'KeyV',
+          keyCode: 86,
+          which: 86,
+          ctrlKey: true,
+          metaKey: true,
+          bubbles: true,
+          cancelable: true
+        });
+        document.dispatchEvent(pasteEvent);
+
+        await new Promise(resolve => setTimeout(resolve, 200));
+
+        // Check if paste worked by looking for new image elements
+        // If not, return false to prompt manual paste
+        return false;
+      }
+    }
+
+    // No target block found, just copy to clipboard
+    return false;
   } catch (error) {
     console.error('Error inserting image:', error);
-    showNotification('画像の挿入に失敗しました。手動でペーストしてください。', 'error');
+    return false;
   }
 }
 
@@ -603,7 +651,7 @@ function escapeHtml(text) {
 }
 
 // Show notification
-function showNotification(message, type = 'info') {
+function showNotification(message, type = 'info', duration = 3000) {
   const notification = document.createElement('div');
   notification.className = `nanobanana-notification nanobanana-notification-${type}`;
   notification.textContent = message;
@@ -616,7 +664,7 @@ function showNotification(message, type = 'info') {
   setTimeout(() => {
     notification.classList.remove('show');
     setTimeout(() => notification.remove(), 300);
-  }, 3000);
+  }, duration);
 }
 
 // Content script is now event-driven (no initialization needed)
