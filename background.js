@@ -81,7 +81,11 @@ ${content}`;
           }]
         }],
         generationConfig: {
-          responseModalities: ['IMAGE', 'TEXT']
+          responseModalities: ['IMAGE', 'TEXT'],
+          imageConfig: {
+            aspectRatio: '16:9',
+            imageSize: '4K'
+          }
         }
       })
     });
